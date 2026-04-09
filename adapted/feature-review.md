@@ -68,6 +68,21 @@ If frontend files are in the diff: run all 6 design check categories. Otherwise 
 
 ---
 
+## Step 4b: DX Pass (developer-facing features only)
+
+Read `/run/media/ryan/Files/dev/autofeature/adapted/feature-devex-check.md`.
+
+This pass checks developer experience quality for features that expose developer-facing surfaces:
+- API endpoints, REST routes, GraphQL schema, webhooks
+- CLI commands, flags, argument parsing
+- Public library/SDK exports, type definitions
+- Documentation changes (README, docs/, CHANGELOG, migration guides)
+
+The file itself contains the applicability gate — it will self-exit if the diff has no
+developer-facing surfaces. Run it unconditionally; it will determine its own scope.
+
+---
+
 ## Step 5: Fix-First
 
 ### 5a: Classify findings

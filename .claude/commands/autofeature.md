@@ -32,7 +32,7 @@ allowed-tools:
 ## Pipeline
 
 ```
-resume? → interrogate → plan → branch → implement → test → review → design → ship
+resume? → interrogate → plan → branch → implement → test → review → design → dx → ship
 ```
 
 ---
@@ -289,7 +289,8 @@ Runs:
 1. Critical pass (security, race conditions, SQL, enums)
 2. Informational pass (type safety, async issues, completeness gaps)
 3. Testing pass (missing negative paths, edge cases, isolation)
-4. Design pass — reads `/run/media/ryan/Files/dev/autofeature/adapted/feature-design-check.md` (only if frontend files changed)
+4. Design pass — reads `feature-design-check.md` (only if frontend files changed)
+5. DX pass — reads `feature-devex-check.md` (only if API/CLI/SDK/docs changed)
 
 Apply Fix-First: AUTO-FIX what can be fixed mechanically, batch ASK items.
 
@@ -316,6 +317,7 @@ Steps:
 - Unit test results
 - Review findings (N auto-fixed, M approved, K skipped)
 - Design review summary (if ran)
+- DX review summary (if ran)
 - Manual test steps
 
 **Output the PR URL.**
@@ -350,6 +352,7 @@ Modified: M files
 Tests:    K written, all passing
 Review:   N auto-fixed, M approved, K skipped
 Design:   [N issues / "not applicable"]
+DX:       [N issues / "not applicable"]
 
 Feature Brief: .autofeature/designs/[slug]-[date].md
 ```
@@ -381,6 +384,7 @@ This skill reads these files at runtime. Edit them to change behavior.
 | `/run/media/ryan/Files/dev/autofeature/adapted/feature-review.md` | Pre-ship code review | gstack /review |
 | `/run/media/ryan/Files/dev/autofeature/adapted/feature-review-checklist.md` | Review categories | gstack review/checklist.md + specialists |
 | `/run/media/ryan/Files/dev/autofeature/adapted/feature-design-check.md` | UI quality check | gstack review/design-checklist.md |
+| `/run/media/ryan/Files/dev/autofeature/adapted/feature-devex-check.md` | Developer experience check | gstack /plan-devex-review + /devex-review |
 | `/run/media/ryan/Files/dev/autofeature/adapted/feature-ship.md` | Commit, push, PR | gstack /ship |
 | `/run/media/ryan/Files/dev/autofeature/source/ethos.md` | Decision principles | gstack ETHOS.md |
 | `/run/media/ryan/Files/dev/autofeature/source/autoplan-principles.md` | 6 decision principles | gstack /autoplan |
