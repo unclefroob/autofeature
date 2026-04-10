@@ -32,7 +32,7 @@ allowed-tools:
 ## Pipeline
 
 ```
-resume? → interrogate → plan → branch → implement → test → review → design → dx → ship
+resume? → interrogate → plan → branch → tdd-implement → verify → review → design → dx → ship
 ```
 
 ---
@@ -171,20 +171,49 @@ echo "Branch created: $BRANCH"
 
 ---
 
-## Step 5: Implementation
+## Step 5: TDD Implementation
 
-Follow the Implementation Plan from Step 3.
+Follow the Implementation Plan from Step 3 using test-first development.
 
 **Before writing any code:**
 - Re-read `CLAUDE.md` for conventions (naming, folder structure, import style)
 - Read the existing files you'll modify — understand the pattern before adding to it
 
-**Implementation order** (from the plan):
-1. Infrastructure (config, new routes, migrations)
-2. Core logic (services, models, pure functions — with their tests)
-3. UI layer (components, screens, views — with their tests)
+**The TDD cycle (per function/component):**
 
-**Per-stack conventions:** (see `/run/media/ryan/Files/dev/autofeature/adapted/feature-plan.md` Step 4 for full details)
+```
+RED → verify RED → GREEN → verify GREEN → REFACTOR
+```
+
+For each function or component in the implementation plan:
+
+1. **RED — Write the failing test first.** One behavior per test. Clear name. Real code (no mocks unless unavoidable).
+2. **Verify RED — Run the test and watch it fail.** Confirm it fails because the feature is missing, not because of a typo. If it passes immediately, the test is testing existing behavior — fix the test.
+3. **GREEN — Write the minimal code to pass.** Simplest implementation that makes the test pass. No extras, no YAGNI.
+4. **Verify GREEN — Run the test and confirm it passes.** Also confirm no other tests broke.
+5. **REFACTOR — Clean up.** Remove duplication, improve names, extract helpers. Keep tests green.
+
+Then move to the next function.
+
+**Test framework detection:**
+```bash
+cat package.json 2>/dev/null | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+deps = {**d.get('dependencies',{}), **d.get('devDependencies',{})}
+print('jest' if 'jest' in deps else 'vitest' if 'vitest' in deps else 'unknown')
+" 2>/dev/null
+ls *Tests/*.swift 2>/dev/null && echo "XCTEST"
+ls src/test/ 2>/dev/null && echo "JUNIT"
+```
+
+**Coverage per new function/component:**
+- Happy path — expected input → expected output
+- Nil/empty/zero edge cases
+- Error paths — dependency failure → correct behavior
+- Shadow paths from the Error & Rescue Map
+
+**Per-stack conventions:** (see `feature-plan.md` Step 4 for full details)
 - Node.js: async/await throughout, TypeScript strict types, explicit error handling
 - React: functional components, hooks, typed props
 - React Native: Platform.OS checks, FlatList for lists, StyleSheet.create()
@@ -193,6 +222,8 @@ Follow the Implementation Plan from Step 3.
 
 **Write testable code:** Pure functions where possible. I/O injected as dependencies. Avoid side effects in constructors.
 
+If tests fail unexpectedly during implementation: **invoke `feature-investigate.md`** before attempting a fix. Follow the Iron Law: no fix without root cause.
+
 **Save checkpoint after implementation:**
 ```bash
 mkdir -p .autofeature/checkpoints
@@ -200,7 +231,7 @@ cat > .autofeature/checkpoints/$(date +%Y%m%d-%H%M%S)-impl.md << 'EOF'
 ---
 status: post-implementation
 branch: BRANCH_NAME
-next_step: tests
+next_step: verify
 ---
 
 ## Working on: [feature name]
@@ -209,8 +240,8 @@ next_step: tests
 [list of files created/modified]
 
 ### Remaining
-1. Write unit tests
-2. Run review
+1. Full test suite run
+2. Pre-ship review
 3. Ship
 
 ### Notes
@@ -220,60 +251,42 @@ EOF
 
 **CHECKPOINT:**
 
-> Implementation complete:
+> Implementation complete (TDD):
 >
 > Created: [files]
 > Modified: [files]
+> Tests written: N (all watched fail then pass)
 >
-> A) Proceed to unit tests
+> A) Proceed to full verification
 > B) Revise — [tell me what to change]
 
 ---
 
-## Step 6: Unit Tests
+## Step 6: Verification Gate
 
-Write unit tests per the test plan from Step 3.
+**The Iron Law: no completion claim without fresh evidence.**
 
-**For every new function/component:**
-1. Happy path — expected input → expected output
-2. Nil/empty/zero edge cases
-3. Error paths — dependency failure → correct behavior
-4. Shadow paths from the Error & Rescue Map
-
-**Test framework detection:**
-```bash
-# Check package.json for test framework
-cat package.json 2>/dev/null | python3 -c "
-import sys, json
-d = json.load(sys.stdin)
-deps = {**d.get('dependencies',{}), **d.get('devDependencies',{})}
-print('jest' if 'jest' in deps else 'vitest' if 'vitest' in deps else 'unknown')
-" 2>/dev/null
-
-# Swift
-ls *Tests/*.swift 2>/dev/null && echo "XCTEST"
-
-# Kotlin
-ls src/test/ 2>/dev/null && echo "JUNIT"
-```
-
-**Run tests and fix failures:**
+Run the full test suite now and paste the output. Do not summarize, do not say "tests pass" — show it.
 
 ```bash
 # Run detected test command (or from CLAUDE.md)
 [test command] 2>&1 | tee /tmp/autofeature_tests.txt
 ```
 
-If tests fail: **invoke `/run/media/ryan/Files/dev/autofeature/adapted/feature-investigate.md`** before attempting a fix.
-Follow the Iron Law: no fix without root cause. Write a regression test that fails without the fix and passes with it.
+Required evidence before proceeding:
+- Test command output showing pass/fail counts
+- Zero failures
+- No new warnings compared to baseline
 
-Do NOT proceed to review with failing tests.
+If any tests fail: **invoke `feature-investigate.md`** before attempting a fix. Write a regression test that fails without the fix and passes with it. Re-run the full suite after fixing and show the output again.
+
+Do NOT proceed to review without showing test output proving all pass.
 
 **CHECKPOINT:**
 
-> Unit tests:
+> Verification:
 >
-> [test file]: N tests — all passing
+> [paste test output — e.g. "34 passed, 0 failed"]
 >
 > A) Proceed to review and ship
 > B) Add more tests for [scenario]
@@ -306,8 +319,8 @@ Steps:
 1. Pre-flight (branch check, diff summary)
 2. Detect test command
 3. Merge base branch
-4. Final test run
-5. Verification gate
+4. Final test run — **paste output, do not claim passing without evidence**
+5. Verification gate — zero failures confirmed
 6. Bisectable commits
 7. Push
 8. Create PR
@@ -349,7 +362,7 @@ PR:       [PR URL]
 
 Created:  N files
 Modified: M files
-Tests:    K written, all passing
+Tests:    K written (TDD, all watched fail→pass), suite: all passing
 Review:   N auto-fixed, M approved, K skipped
 Design:   [N issues / "not applicable"]
 DX:       [N issues / "not applicable"]
