@@ -15,6 +15,10 @@ allowed-tools:
   - Glob
   - AskUserQuestion
   - WebSearch
+  - Agent
+  - TaskCreate
+  - TaskUpdate
+  - Monitor
 ---
 
 # AutoFeature — End-to-End Feature Builder
@@ -82,6 +86,22 @@ Feature request = everything after `/autofeature` in the user's message.
 6. Bias toward action — ship, don't debate
 
 Only interrupt for a **User Challenge**: when implementation would need to fundamentally contradict the stated feature request.
+
+**After mode is selected, create pipeline tasks:**
+
+Create one task per pipeline step so the user can track progress. Use `TaskUpdate` to mark each `in_progress` before starting it and `completed` when done.
+
+```
+Task 1: Feature Interrogation        → "Interrogating feature requirements"
+Task 2: Technical Planning           → "Planning implementation"
+Task 3: Create Feature Branch        → "Creating feature branch"
+Task 4: TDD Implementation           → "Implementing feature (TDD)"
+Task 5: Verification Gate            → "Running test suite"
+Task 6: Pre-Ship Review              → "Running pre-ship review"
+Task 7: Ship                         → "Shipping — commits, push, PR"
+```
+
+Set up `addBlockedBy` dependencies so each task blocks on the previous one.
 
 ---
 
@@ -266,21 +286,21 @@ EOF
 
 **The Iron Law: no completion claim without fresh evidence.**
 
-Run the full test suite now and paste the output. Do not summarize, do not say "tests pass" — show it.
+Run the full test suite using `Monitor` to stream output live as tests execute:
 
-```bash
-# Run detected test command (or from CLAUDE.md)
-[test command] 2>&1 | tee /tmp/autofeature_tests.txt
+```
+Monitor command: [test command] 2>&1 | grep --line-buffered ""
+description: "test suite — [feature name]"
 ```
 
-Required evidence before proceeding:
+This streams each test result as it arrives. Required evidence before proceeding:
 - Test command output showing pass/fail counts
 - Zero failures
 - No new warnings compared to baseline
 
-If any tests fail: **invoke `feature-investigate.md`** before attempting a fix. Write a regression test that fails without the fix and passes with it. Re-run the full suite after fixing and show the output again.
+If any tests fail: **invoke `feature-investigate.md`** before attempting a fix. Write a regression test that fails without the fix and passes with it. Re-run the full suite via Monitor after fixing and confirm all pass.
 
-Do NOT proceed to review without showing test output proving all pass.
+Do NOT proceed to review without test output proving all pass.
 
 **CHECKPOINT:**
 
@@ -298,16 +318,25 @@ Do NOT proceed to review without showing test output proving all pass.
 
 Read and follow `/run/media/ryan/Files/dev/autofeature/adapted/feature-review.md`.
 
-Runs:
-1. Critical pass (security, race conditions, SQL, enums)
-2. Informational pass (type safety, async issues, completeness gaps)
-3. Testing pass (missing negative paths, edge cases, isolation)
-4. Design pass — reads `feature-design-check.md` (only if frontend files changed)
-5. DX pass — reads `feature-devex-check.md` (only if API/CLI/SDK/docs changed)
+**Run review passes in parallel using `Agent`:**
 
-Apply Fix-First: AUTO-FIX what can be fixed mechanically, batch ASK items.
+Launch these as simultaneous agents (single message, multiple Agent calls):
 
-If fixes were applied: re-run tests (Step 6) before continuing.
+1. **Critical pass** — security, race conditions, SQL injection, unhandled enums
+2. **Informational pass** — type safety, async issues, completeness gaps
+3. **Testing pass** — missing negative paths, edge cases, test isolation
+
+Each agent should: read `feature-review.md` + `feature-review-checklist.md`, read the changed files, and return a structured list of findings (CRITICAL / INFO / TESTING) with file:line references.
+
+If frontend files changed, also launch:
+4. **Design pass** agent — reads `feature-design-check.md`, reviews changed UI files
+
+If API/CLI/SDK/docs changed, also launch:
+5. **DX pass** agent — reads `feature-devex-check.md`, reviews changed interface files
+
+Collect all agent results, then apply Fix-First: AUTO-FIX what can be fixed mechanically, batch ASK items.
+
+If fixes were applied: re-run tests (Step 6 Monitor) before continuing.
 
 ---
 
