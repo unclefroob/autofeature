@@ -56,7 +56,35 @@ The Claude Code custom command. No gstack source — written from scratch to orc
 
 | File | Status | Description |
 |------|--------|-------------|
-| `.claude/commands/autofeature.md` | `CUSTOM` | Main orchestration. Reads adapted files at runtime. Supports automated + checkpoint modes. Includes: ETHOS principles, checkpoint/resume, investigate invocation on test failure, design check. |
+| `.claude/commands/autofeature.md` | `CUSTOM` | Main orchestration. Reads adapted files + agents/ + orchestrator/ at runtime. Supports automated + checkpoint modes. Pipeline: interrogate → scope-gate → plan → branch → implement (parallel) → test → review → ship. |
+
+---
+
+## Specialist Agents (`agents/`)
+
+Self-contained subagent prompts. Spawned via the `Agent` tool (subagent_type=`general-purpose`) by reading the file and passing its content inline. No install step — files stay portable.
+
+| File | Status | Description |
+|------|--------|-------------|
+| `agents/express-mongo-architect.md` | `CUSTOM` | Backend specialist: Express routes/controllers/middleware, Mongoose models, validation, integration tests |
+| `agents/react-architect.md` | `CUSTOM` | Web frontend specialist: components, hooks, routing, forms, React Query, RTL tests |
+| `agents/react-native-architect.md` | `CUSTOM` | Mobile specialist: screens, navigation, Platform.OS, permissions, native modules, lists |
+| `agents/mongo-data-modeler.md` | `CUSTOM` | Schema design, index strategy, query plan review, migration plan |
+| `agents/api-contract-broker.md` | `CUSTOM` | Cross-repo contract reconciliation when backend + frontend(s) are touched in one run |
+| `agents/test-runner.md` | `CUSTOM` | Test execution proxy — keeps multi-MB test logs out of orchestrator context, returns <2KB summary |
+| `agents/README.md` | `CUSTOM` | Roster, invocation pattern, parallel fan-out usage |
+
+---
+
+## Orchestrator Helpers (`orchestrator/`)
+
+Decision logic the orchestrator reads at runtime. Edit to change scope/coordination/skill behavior without touching the main command file.
+
+| File | Status | Description |
+|------|--------|-------------|
+| `orchestrator/scope-gate.md` | `CUSTOM` | Classifies feature into micro / single-layer / cross-stack / cross-repo before fan-out |
+| `orchestrator/cross-repo-detect.md` | `CUSTOM` | Finds sibling `*-api`/`*-mobile`/`*-desktop`/`*-cms`/`*-website` repos under `~/dev/` |
+| `orchestrator/skill-wiring.md` | `CUSTOM` | When to invoke Plan / Explore subagents and security-review / simplify / frontend-design skills |
 
 ---
 
@@ -68,8 +96,20 @@ The Claude Code custom command. No gstack source — written from scratch to orc
 **To change the orchestration pipeline:**
 → Edit `.claude/commands/autofeature.md`
 
+**To change a specialist's behavior (e.g., how the backend architect designs routes):**
+→ Edit the relevant `agents/*.md` file
+
+**To change scope classification or cross-repo detection rules:**
+→ Edit the relevant `orchestrator/*.md` file
+
+**To add a new specialist agent:**
+1. Create `agents/<name>.md` following the format of existing agents
+2. Add it to `agents/README.md` roster
+3. Wire it into `.claude/commands/autofeature.md` at the appropriate phase
+4. Add a row to this MANIFEST
+
 **To add a new tech stack:**
-→ Add stack-specific sections to each `adapted/` file that currently has stack sections
+→ Add stack-specific sections to each `adapted/` file that currently has stack sections; create a new `agents/<stack>-architect.md` if a specialist is warranted
 
 **To sync with upstream gstack changes:**
 1. Re-extract the relevant `source/` file from the new gstack version
@@ -120,3 +160,10 @@ Additions not in any gstack source:
 | Missing UI states category | `adapted/feature-design-check.md` | Loading/empty/error states are common omission |
 | Stack-specific debug commands | `adapted/feature-investigate.md` | Cache clearing, simulator reset, Metro bundler |
 | Methodology reference table | `.claude/commands/autofeature.md` | Single place to see which file does what |
+| Stack-specialist agent fleet | `agents/*.md` | Parallel design + implementation across backend/web/mobile |
+| Scope gate (micro/single/cross-stack/cross-repo tiers) | `orchestrator/scope-gate.md` | Avoid spawning 5 agents for a 1-file change |
+| Cross-repo coordination | `orchestrator/cross-repo-detect.md` | Detect sibling `*-api`/`*-mobile` repos and ship coordinated PRs |
+| Test-runner subagent | `agents/test-runner.md` | Keep multi-MB test logs out of orchestrator context |
+| Plan + Explore subagent delegation | `orchestrator/skill-wiring.md` | Outsource planning and context-gather to built-in subagent_types |
+| security-review + simplify skill wiring | `orchestrator/skill-wiring.md` | Reuse existing skills inside the pipeline |
+| frontend-design skill wiring | `orchestrator/skill-wiring.md` | Polished UI for new components, not generic AI aesthetics |

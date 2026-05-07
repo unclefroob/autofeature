@@ -2,9 +2,9 @@
 name: autofeature
 description: |
   Build an entire feature end-to-end from a single prompt.
-  Pipeline: interrogate → plan → branch → implement → test → review → ship.
+  Pipeline: interrogate → scope-gate → plan → branch → implement (parallel specialists) → test → review → ship.
   Supports automated (fire-and-forget) and checkpoint (pause-and-approve) modes.
-  Works for Node.js, React, React Native, Swift, and Kotlin projects.
+  Stack: Node.js + Express + Mongoose + MongoDB, React, React Native (Expo or bare). Cross-repo coordination for paired *-api / *-mobile / *-desktop projects.
   Invoke as: /autofeature [mode:] <feature description>
 allowed-tools:
   - Bash
@@ -16,12 +16,13 @@ allowed-tools:
   - AskUserQuestion
   - WebSearch
   - Agent
+  - Skill
   - TaskCreate
   - TaskUpdate
   - Monitor
 ---
 
-# AutoFeature — End-to-End Feature Builder
+# AutoFeature — End-to-End Feature Orchestrator
 
 ## Builder Principles (always active)
 
@@ -33,10 +34,29 @@ allowed-tools:
 
 ---
 
+## $AUTOFEATURE_HOME
+
+All methodology + agent + orchestrator files live under one root. Default:
+
+```bash
+AUTOFEATURE_HOME="${AUTOFEATURE_HOME:-$HOME/dev/autofeature}"
+```
+
+Resolved layout:
+- `$AUTOFEATURE_HOME/adapted/` — methodology files (interrogation, plan, investigate, review, ship, design check, devex check)
+- `$AUTOFEATURE_HOME/agents/` — specialist subagent prompts
+- `$AUTOFEATURE_HOME/orchestrator/` — scope-gate, cross-repo-detect, skill-wiring
+- `$AUTOFEATURE_HOME/source/` — gstack reference (do not edit)
+
+If `$AUTOFEATURE_HOME` doesn't exist, abort with: `AutoFeature methodology repo missing. Expected at $AUTOFEATURE_HOME. Clone from <user repo>.`
+
+---
+
 ## Pipeline
 
 ```
-resume? → interrogate → plan → branch → tdd-implement → verify → review → design → dx → ship
+resume? → interrogate → scope-gate → plan → branch → cross-repo-coord →
+  implement (parallel specialists) → verify (test-runner) → review (parallel + skills) → ship
 ```
 
 ---
@@ -56,9 +76,7 @@ If checkpoints exist from a previous autofeature run on this branch, show them:
 > A) Resume from most recent checkpoint
 > B) Start fresh
 
-If no checkpoints or user chooses fresh start: proceed to Step 1.
-
-If resuming: read `.autofeature/checkpoints/[latest].md`, reconstruct context, and jump to the phase indicated in the checkpoint's `next_step` field.
+If resuming: read `.autofeature/checkpoints/[latest].md`, reconstruct context, and jump to the phase indicated in the checkpoint's `next_step` field. Also read `.autofeature/coordination.md` if present (for cross-repo runs) — siblings, branch names, ship order.
 
 ---
 
@@ -75,7 +93,7 @@ Feature request = everything after `/autofeature` in the user's message.
 >
 > **A) Automated** — run straight through, make all decisions using best judgment, produce a PR. You review at the end.
 >
-> **B) Checkpoint** — pause for approval after: feature spec, implementation plan, implementation, before shipping.
+> **B) Checkpoint** — pause for approval after: scope gate, feature spec, implementation plan, implementation, before shipping.
 
 **In AUTOMATED mode**, apply these 6 decision principles for all choices:
 1. Choose completeness — cover more edge cases, not fewer
@@ -87,18 +105,18 @@ Feature request = everything after `/autofeature` in the user's message.
 
 Only interrupt for a **User Challenge**: when implementation would need to fundamentally contradict the stated feature request.
 
-**After mode is selected, create pipeline tasks:**
-
-Create one task per pipeline step so the user can track progress. Use `TaskUpdate` to mark each `in_progress` before starting it and `completed` when done.
+**Create pipeline tasks via TaskCreate:**
 
 ```
 Task 1: Feature Interrogation        → "Interrogating feature requirements"
-Task 2: Technical Planning           → "Planning implementation"
-Task 3: Create Feature Branch        → "Creating feature branch"
-Task 4: TDD Implementation           → "Implementing feature (TDD)"
-Task 5: Verification Gate            → "Running test suite"
-Task 6: Pre-Ship Review              → "Running pre-ship review"
-Task 7: Ship                         → "Shipping — commits, push, PR"
+Task 2: Scope Classification         → "Classifying feature scope"
+Task 3: Cross-Repo Detection         → "Detecting sibling repos"
+Task 4: Technical Planning           → "Planning implementation"
+Task 5: Create Feature Branch(es)    → "Creating feature branch(es)"
+Task 6: Implementation (parallel)    → "Implementing feature"
+Task 7: Verification Gate            → "Running test suite"
+Task 8: Pre-Ship Review              → "Running pre-ship review"
+Task 9: Ship                         → "Shipping — commits, push, PR(s)"
 ```
 
 Set up `addBlockedBy` dependencies so each task blocks on the previous one.
@@ -107,66 +125,168 @@ Set up `addBlockedBy` dependencies so each task blocks on the previous one.
 
 ## Step 2: Feature Interrogation
 
-Read and follow `/run/media/ryan/Files/dev/autofeature/adapted/feature-interrogation.md`.
+Read and follow `$AUTOFEATURE_HOME/adapted/feature-interrogation.md`.
 
 **Goal:** Produce a Feature Brief at `.autofeature/designs/[slug]-[date].md`.
 
 **Slug:** Convert feature request to kebab-case, max 5 words.
 Example: "add user profile photo upload" → `user-profile-photo-upload`
 
-**Context gathering:**
-1. Read `CLAUDE.md` if it exists (project conventions, test commands, architecture)
-2. Run `git log --oneline -20`
-3. Detect tech stack:
-   ```bash
-   # Node backend
-   cat package.json 2>/dev/null | grep -E '"(express|fastify|@nestjs|hapi|koa)"' && echo "NODE_BACKEND"
-   # React
-   cat package.json 2>/dev/null | grep '"react"' | grep -v '"react-native"' && echo "REACT"
-   # React Native
-   cat package.json 2>/dev/null | grep '"react-native"' && echo "REACT_NATIVE"
-   # Swift
-   ls *.xcodeproj *.xcworkspace Package.swift 2>/dev/null && echo "SWIFT"
-   # Kotlin/Android
-   ls build.gradle build.gradle.kts 2>/dev/null && echo "KOTLIN_ANDROID"
-   ```
-4. Search Before Building: use Grep/Glob to find existing code that might already partially solve the feature
+### 2a. Context gathering — delegate to Explore subagent
 
-**AUTOMATED:** Answer interrogation questions from context. State assumptions in Feature Brief.
+Don't grep + glob in main context. Spawn Explore:
+
+```
+Agent({
+  description: "Autofeature context scan",
+  subagent_type: "Explore",
+  prompt: "Gather context for autofeature run.
+
+  Feature request: [verbatim user request]
+  Repo: [pwd]
+
+  Find and return file paths (no excerpts unless load-bearing):
+  1. Project conventions: CLAUDE.md, README, lint config, formatter config, tsconfig
+  2. Tech stack signals: package.json deps that match (express|fastify|@nestjs|hapi|koa) | (react|react-native) | mongoose, ios/ folder, android/ folder
+  3. Test setup: test command from package.json, jest/vitest/playwright configs, existing test directories
+  4. E2E setup: @playwright/test in deps, playwright.config files, e2e/ directories
+  5. Existing code that might already partially solve this feature — grep terms from the feature request
+  6. The auth pattern used in the repo (middleware name, where it's applied)
+  7. The data model file(s) for affected entities
+  8. The API client / data-fetching layer used by frontends in this repo
+
+  Return as a structured list with one-line role per file. Under 1500 words."
+})
+```
+
+Save the result to the Feature Brief under `## Context` and use it for downstream steps. The orchestrator does not need to redo any of this.
+
+### 2b. Stack detection (record in brief)
+
+From the Explore result, record:
+- `STACK = NODE_BACKEND | REACT | REACT_NATIVE` (one or more)
+- `HAS_E2E = true | false`, `E2E_TOOL = playwright | cypress | none`
+- `TEST_CMD = [from package.json]`
+
+### 2c. Interrogation questions
+
+**AUTOMATED:** Answer interrogation questions from the Explore context. State assumptions in Feature Brief.
 
 **CHECKPOINT:** Ask the 6 builder questions interactively. Then:
 
 > Feature Brief:
 > [content]
 >
-> A) Approve — proceed to planning
+> A) Approve — proceed to scope classification
 > B) Revise — [tell me what to change]
 > C) Abort
 
 ---
 
-## Step 3: Technical Planning
+## Step 3: Scope Gate
 
-Read and follow `/run/media/ryan/Files/dev/autofeature/adapted/feature-plan.md`.
+Read and follow `$AUTOFEATURE_HOME/orchestrator/scope-gate.md`.
 
-**Goal:** Produce an Implementation Plan appended to the Feature Brief.
+Classify into: `micro | single-layer | cross-stack | cross-repo`. Append the `## Scope` section to the Feature Brief.
 
-Includes:
-- Step 0: Scope Challenge
-- Step 1: Architecture Review (with stack-specific checks)
-- Step 2: Code Quality Review
-- Step 3: Unit Test Plan (with shadow path mapping: happy/nil/empty/error)
-- Step 3b: Error & Rescue Map (what can fail, how it's handled, what user sees)
-- Step 3c: Shadow Path Testing (4 paths per data flow)
-- Step 3d: Observability Checklist (logging, error context)
-- Step 4: Performance Review
+**CHECKPOINT** mode: show the classification before proceeding (per scope-gate.md).
+
+The scope tier determines:
+- Which specialist agents are spawned in Step 6
+- Whether `api-contract-broker` runs
+- Whether `mongo-data-modeler` runs
+- Whether `simplify` skill runs in Step 8
+
+---
+
+## Step 4: Cross-Repo Detection
+
+If scope tier ∈ {`cross-repo`} OR the feature description mentions multiple surfaces:
+
+Read and follow `$AUTOFEATURE_HOME/orchestrator/cross-repo-detect.md`.
+
+If siblings are found and selected:
+- Write `.autofeature/coordination.md` listing siblings, branch name, ship order
+- All subsequent file paths in the run are relative to a "current target repo" that the orchestrator iterates over
+
+For non-cross-repo tiers: skip this step.
+
+---
+
+## Step 5: Technical Planning
+
+### 5a. Delegate the plan to the Plan subagent
+
+```
+Agent({
+  description: "Autofeature technical plan",
+  subagent_type: "Plan",
+  prompt: "Read the Feature Brief at .autofeature/designs/[slug]-[date].md.
+  Also read $AUTOFEATURE_HOME/adapted/feature-plan.md for methodology.
+
+  Produce the Implementation Plan section including:
+  - Step 0: Scope Challenge
+  - Step 1: Architecture Review (stack-specific based on STACK in brief)
+  - Step 2: Code Quality Review
+  - Step 3: Unit Test Plan with shadow paths (happy/nil/empty/error)
+  - Step 3b: Error & Rescue Map
+  - Step 3c: Shadow Path Testing
+  - Step 3d: Observability Checklist
+  - Step 4: Performance Review
+
+  Append to the Feature Brief under '## Implementation Plan'. Return a 5-line summary of decisions made and any User Challenges surfaced."
+})
+```
+
+### 5b. Parallel stack-specialist designs (skip for `micro` tier)
+
+After the Plan subagent returns, fan out the architects in parallel based on STACK and scope tier:
+
+For each applicable architect, compose a spawn prompt:
+1. Read `$AUTOFEATURE_HOME/agents/<agent-name>.md`
+2. Append: feature brief path, mode=`design`, repo path
+3. Spawn via `Agent` (subagent_type=`general-purpose`)
+
+**Send all applicable Agent calls in a SINGLE message for true parallelism.**
+
+| STACK | Tier | Agents spawned |
+|-------|------|----------------|
+| NODE_BACKEND only | single-layer | express-mongo-architect (+ mongo-data-modeler if schema work) |
+| REACT only | single-layer | react-architect |
+| REACT_NATIVE only | single-layer | react-native-architect |
+| NODE_BACKEND + (REACT or REACT_NATIVE) | cross-stack | both architects + mongo-data-modeler if schema |
+| Cross-repo | cross-repo | every applicable architect (one per repo) + mongo-data-modeler |
+
+Each architect appends its plan section to the Feature Brief.
+
+### 5c. Contract reconciliation (cross-stack and cross-repo only)
+
+For `cross-stack` (single repo): orchestrator reads each architect's section, identifies request/response shape mismatches, resolves inline.
+
+For `cross-repo`: spawn `api-contract-broker`:
+
+```
+Read $AUTOFEATURE_HOME/agents/api-contract-broker.md
+Agent({
+  description: "API contract reconciliation",
+  subagent_type: "general-purpose",
+  prompt: "[api-contract-broker.md content]
+
+  Job: Reconcile contracts across the architects' plans in .autofeature/designs/[slug]-[date].md.
+  Repos involved: [list from coordination.md]
+  Return a Contract Distribution block per repo."
+})
+```
+
+The broker output is added to the Feature Brief and used to brief the implementers in Step 7.
+
+### 5d. Mode handling
 
 **AUTOMATED:** Apply 6 decision principles. Only surface User Challenges.
 
 **CHECKPOINT:**
-
-> Implementation Plan:
-> [plan content]
+> Implementation Plan + Specialist Designs:
+> [summary of architect outputs]
 >
 > A) Approve — proceed to branch creation and implementation
 > B) Revise — [tell me what to change]
@@ -174,77 +294,68 @@ Includes:
 
 ---
 
-## Step 4: Create Feature Branch
+## Step 6: Create Feature Branch(es)
+
+For the primary repo:
 
 ```bash
-# Get base branch
 BASE=$(git remote show origin 2>/dev/null | grep 'HEAD branch' | awk '{print $NF}' || echo "main")
 git fetch origin $BASE
 git checkout $BASE
 git pull origin $BASE
-
-# Create feature branch
 BRANCH="feature/[slug]"
 git checkout -b "$BRANCH"
 echo "Branch created: $BRANCH"
 ```
 
+For cross-repo coordination, repeat in each sibling repo listed in `.autofeature/coordination.md`. Skip dirty siblings (already filtered in Step 4) — surface them again if any are dirty:
+
+> Sibling [name] is dirty. Skipping — handle separately. Continuing with: [remaining list]
+
 ---
 
-## Step 5: TDD Implementation
+## Step 7: Implementation
 
-Follow the Implementation Plan from Step 3 using test-first development.
+### 7a. Pre-implementation: frontend-design skill (when applicable)
 
-**Before writing any code:**
-- Re-read `CLAUDE.md` for conventions (naming, folder structure, import style)
-- Read the existing files you'll modify — understand the pattern before adding to it
-
-**The TDD cycle (per function/component):**
+If the plan creates new UI components/pages AND the `frontend-design` skill is available AND scope tier ≠ `micro`:
 
 ```
-RED → verify RED → GREEN → verify GREEN → REFACTOR
+Skill({
+  skill: "frontend-design:frontend-design",
+  args: "Generate the [component(s) named in plan] for [feature description].
+  Style system: [tailwind | styled-components | css-modules | StyleSheet — match repo].
+  Save to: [target paths from plan]."
+})
 ```
 
-For each function or component in the implementation plan:
+Skip for: data-display tweaks, admin-only screens, single-component edits.
 
-1. **RED — Write the failing test first.** One behavior per test. Clear name. Real code (no mocks unless unavoidable).
-2. **Verify RED — Run the test and watch it fail.** Confirm it fails because the feature is missing, not because of a typo. If it passes immediately, the test is testing existing behavior — fix the test.
-3. **GREEN — Write the minimal code to pass.** Simplest implementation that makes the test pass. No extras, no YAGNI.
-4. **Verify GREEN — Run the test and confirm it passes.** Also confirm no other tests broke.
-5. **REFACTOR — Clean up.** Remove duplication, improve names, extract helpers. Keep tests green.
+### 7b. Specialist implementers (parallel where possible)
 
-Then move to the next function.
+For each architect that produced a design, spawn the same agent in `implement` mode. Send all in a single message for parallelism:
 
-**Test framework detection:**
-```bash
-cat package.json 2>/dev/null | python3 -c "
-import sys, json
-d = json.load(sys.stdin)
-deps = {**d.get('dependencies',{}), **d.get('devDependencies',{})}
-print('jest' if 'jest' in deps else 'vitest' if 'vitest' in deps else 'unknown')
-" 2>/dev/null
-ls *Tests/*.swift 2>/dev/null && echo "XCTEST"
-ls src/test/ 2>/dev/null && echo "JUNIT"
+```
+[single message]
+Agent({ description: "Backend impl", prompt: "[express-mongo-architect.md] + mode=implement + brief path + branch" })
+Agent({ description: "Web impl",     prompt: "[react-architect.md] + mode=implement + brief path + branch" })
+Agent({ description: "Mobile impl",  prompt: "[react-native-architect.md] + mode=implement + brief path + branch" })
 ```
 
-**Coverage per new function/component:**
-- Happy path — expected input → expected output
-- Nil/empty/zero edge cases
-- Error paths — dependency failure → correct behavior
-- Shadow paths from the Error & Rescue Map
+Each implementer follows TDD per `feature-plan.md` (RED → verify RED → GREEN → verify GREEN → REFACTOR).
 
-**Per-stack conventions:** (see `feature-plan.md` Step 4 for full details)
-- Node.js: async/await throughout, TypeScript strict types, explicit error handling
-- React: functional components, hooks, typed props
-- React Native: Platform.OS checks, FlatList for lists, StyleSheet.create()
-- Swift: protocol-oriented dependencies (for testability), async/await or DispatchQueue
-- Kotlin: ViewModels, coroutines with proper scope, null-safe operators
+For `micro` scope: orchestrator implements directly in main context — no fan-out.
 
-**Write testable code:** Pure functions where possible. I/O injected as dependencies. Avoid side effects in constructors.
+### 7c. E2E test writing (Playwright — React/web only)
 
-If tests fail unexpectedly during implementation: **invoke `feature-investigate.md`** before attempting a fix. Follow the Iron Law: no fix without root cause.
+If STACK includes REACT and HAS_E2E=true (or user opted into installing Playwright):
 
-**Save checkpoint after implementation:**
+The react-architect writes a Playwright test for the golden path as part of its `implement` mode. See `feature-interrogation.md` for setup details.
+
+For React Native, skip — manual platform testing is the verification.
+
+### 7d. Save checkpoint after implementation
+
 ```bash
 mkdir -p .autofeature/checkpoints
 cat > .autofeature/checkpoints/$(date +%Y%m%d-%H%M%S)-impl.md << 'EOF'
@@ -252,129 +363,214 @@ cat > .autofeature/checkpoints/$(date +%Y%m%d-%H%M%S)-impl.md << 'EOF'
 status: post-implementation
 branch: BRANCH_NAME
 next_step: verify
+scope: [tier]
 ---
 
 ## Working on: [feature name]
 
-### Implemented
-[list of files created/modified]
+### Implemented (per architect)
+- Backend: [files from express-mongo-architect summary]
+- Web:     [files from react-architect summary]
+- Mobile:  [files from react-native-architect summary]
+
+### Open contract questions
+[from architect summaries]
 
 ### Remaining
-1. Full test suite run
-2. Pre-ship review
+1. Full test suite run (test-runner)
+2. Pre-ship review (parallel + security-review + simplify)
 3. Ship
-
-### Notes
-[any gotchas, open questions, decisions made]
 EOF
 ```
 
 **CHECKPOINT:**
-
-> Implementation complete (TDD):
+> Implementation complete:
 >
-> Created: [files]
-> Modified: [files]
-> Tests written: N (all watched fail then pass)
+> [per-architect summary]
 >
-> A) Proceed to full verification
+> A) Proceed to verification
 > B) Revise — [tell me what to change]
 
 ---
 
-## Step 6: Verification Gate
+## Step 8: Verification Gate
 
 **The Iron Law: no completion claim without fresh evidence.**
 
-Run the full test suite using `Monitor` to stream output live as tests execute:
+### 8a. Unit + integration tests via test-runner agent
 
 ```
-Monitor command: [test command] 2>&1 | grep --line-buffered ""
-description: "test suite — [feature name]"
+Read $AUTOFEATURE_HOME/agents/test-runner.md
+Agent({
+  description: "Run unit/integration suite",
+  subagent_type: "general-purpose",
+  prompt: "[test-runner.md content]
+
+  Job: Run the unit and integration test suite for repo at [pwd].
+  Mode: unit (auto-detect command).
+  Return a structured summary."
+})
 ```
 
-This streams each test result as it arrives. Required evidence before proceeding:
-- Test command output showing pass/fail counts
-- Zero failures
-- No new warnings compared to baseline
+The test-runner returns a <2KB summary. The orchestrator NEVER ingests full test logs.
 
-If any tests fail: **invoke `feature-investigate.md`** before attempting a fix. Write a regression test that fails without the fix and passes with it. Re-run the full suite via Monitor after fixing and confirm all pass.
+### 8b. Playwright E2E (if HAS_E2E=true)
 
-Do NOT proceed to review without test output proving all pass.
+```
+Agent({
+  description: "Run Playwright suite",
+  subagent_type: "general-purpose",
+  prompt: "[test-runner.md content]
+
+  Job: Run the Playwright E2E suite for repo at [pwd].
+  Mode: e2e.
+  Return a structured summary."
+})
+```
+
+### 8c. Cross-repo: run test-runner per repo
+
+For coordinated runs, run unit tests in EACH repo. Track results in `.autofeature/coordination.md`. Do NOT proceed to ship if any repo fails.
+
+### 8d. Failure handling
+
+If tests fail: invoke `$AUTOFEATURE_HOME/adapted/feature-investigate.md` before attempting a fix. Iron Law: no fix without root cause. Write a regression test that fails without the fix and passes with it. Re-run test-runner after fixing.
+
+If 3 hypotheses fail during debugging → Emergency Stop, escalate to user.
 
 **CHECKPOINT:**
-
 > Verification:
 >
-> [paste test output — e.g. "34 passed, 0 failed"]
+> Unit:  [test-runner summary]
+> E2E:   [test-runner summary or "n/a"]
 >
-> A) Proceed to review and ship
+> A) Proceed to review
 > B) Add more tests for [scenario]
 > C) Stop here — I'll review manually
 
 ---
 
-## Step 7: Pre-Ship Review
+## Step 9: Pre-Ship Review
 
-Read and follow `/run/media/ryan/Files/dev/autofeature/adapted/feature-review.md`.
+Read `$AUTOFEATURE_HOME/adapted/feature-review.md`.
 
-**Run review passes in parallel using `Agent`:**
+### 9a. Parallel review fan-out
 
-Launch these as simultaneous agents (single message, multiple Agent calls):
+Spawn these as simultaneous agents in a SINGLE message:
 
-1. **Critical pass** — security, race conditions, SQL injection, unhandled enums
+1. **Critical pass** — security, race conditions, SQL/NoSQL injection, unhandled enums, mass-assignment
 2. **Informational pass** — type safety, async issues, completeness gaps
 3. **Testing pass** — missing negative paths, edge cases, test isolation
 
-Each agent should: read `feature-review.md` + `feature-review-checklist.md`, read the changed files, and return a structured list of findings (CRITICAL / INFO / TESTING) with file:line references.
-
 If frontend files changed, also launch:
-4. **Design pass** agent — reads `feature-design-check.md`, reviews changed UI files
+4. **Design pass** — reads `feature-design-check.md`, reviews changed UI files
 
 If API/CLI/SDK/docs changed, also launch:
-5. **DX pass** agent — reads `feature-devex-check.md`, reviews changed interface files
+5. **DX pass** — reads `feature-devex-check.md`, reviews changed interface files
 
-Collect all agent results, then apply Fix-First: AUTO-FIX what can be fixed mechanically, batch ASK items.
+Each agent reads `feature-review-checklist.md` + the changed files, returns structured findings (CRITICAL / INFO / TESTING) with `file:line` references.
 
-If fixes were applied: re-run tests (Step 6 Monitor) before continuing.
+### 9b. security-review skill
+
+While the parallel agents run, invoke `security-review` if the feature touches ANY of:
+- Auth, sessions, tokens, refresh flow
+- File uploads
+- User-supplied content rendered as HTML/markdown
+- DB queries built from request input
+- CORS/CSP/security headers
+- Secret/env var loading
+- External data deserialization
+
+```
+Skill({ skill: "security-review", args: "" })
+```
+
+Add findings to the same triage queue.
+
+### 9c. Fix-First triage
+
+Collect all findings:
+- **AUTO-FIX** — mechanical issues (typos, missing await, wrong type, missing null check, unused import)
+- **ASK** — judgment calls (architecture, naming, abstraction)
+
+Apply auto-fixes immediately. Batch ASK items into a single AskUserQuestion call (CHECKPOINT) or apply 6 decision principles (AUTOMATED).
+
+After fixes: re-run test-runner.
+
+### 9d. simplify skill (skip for `micro` tier)
+
+```
+Skill({ skill: "simplify", args: "" })
+```
+
+If simplify makes changes, run test-runner once more.
 
 ---
 
-## Step 8: Ship
+## Step 10: Ship
 
-Read and follow `/run/media/ryan/Files/dev/autofeature/adapted/feature-ship.md`.
+Read `$AUTOFEATURE_HOME/adapted/feature-ship.md`.
 
-Steps:
+### 10a. Single repo
+
 1. Pre-flight (branch check, diff summary)
-2. Detect test command
-3. Merge base branch
-4. Final test run — **paste output, do not claim passing without evidence**
-5. Verification gate — zero failures confirmed
-6. Bisectable commits
-7. Push
-8. Create PR
+2. Merge base branch (resolve any conflicts → emergency stop if not auto-resolvable)
+3. Final test-runner run — paste summary, do not claim passing without evidence
+4. Bisectable commits (one logical change per commit)
+5. Push
+6. Create PR via `gh pr create`
 
-**PR body includes:**
-- Summary of all changes
-- Unit test results
-- Review findings (N auto-fixed, M approved, K skipped)
-- Design review summary (if ran)
-- DX review summary (if ran)
-- Manual test steps
+### 10b. Cross-repo coordinated ship
 
-**Output the PR URL.**
+Order matters because frontends depend on the API:
+
+```
+1. Ship API repo first
+2. Wait for CI green on API repo (test-runner against the deployed branch if env exists; otherwise just confirm CI passes)
+3. Ship CMS / website (any backend-adjacent web)
+4. Ship mobile / desktop last
+```
+
+Update `.autofeature/coordination.md` per repo as each ships.
+
+### 10c. PR body template
+
+```markdown
+## Summary
+[1-3 bullet points of what was built]
+
+## Architecture
+[brief, if non-obvious — link to Feature Brief]
+
+## Test results
+- Unit: [counts from test-runner]
+- E2E:  [counts or "n/a"]
+
+## Review
+- Auto-fixed: N findings
+- Approved by user: M findings
+- Skipped (with reason): K findings
+- Security review: [skill summary or "n/a"]
+- Simplify pass: [N improvements or "n/a"]
+
+## Cross-repo
+[for coordinated runs — link to sibling PRs]
+
+## Manual test steps
+1. [...]
+```
+
+Output the PR URL(s).
 
 ---
 
-## Step 9: Cleanup Checkpoint
-
-After successful ship, mark checkpoint as complete:
+## Step 11: Cleanup Checkpoint
 
 ```bash
 cat >> .autofeature/checkpoints/$(ls -t .autofeature/checkpoints/ | head -1) << 'EOF'
 
 ### Completed
-PR: [PR URL]
+PR(s): [URLs]
 Status: SHIPPED
 EOF
 ```
@@ -386,15 +582,23 @@ EOF
 ```
 === AutoFeature Complete ===
 Feature:  [feature name]
+Scope:    [micro | single-layer | cross-stack | cross-repo]
 Branch:   feature/[slug]
-PR:       [PR URL]
+PR(s):    [URL list]
 
-Created:  N files
-Modified: M files
-Tests:    K written (TDD, all watched fail→pass), suite: all passing
-Review:   N auto-fixed, M approved, K skipped
-Design:   [N issues / "not applicable"]
-DX:       [N issues / "not applicable"]
+Specialists used:
+  - express-mongo-architect: [yes/no]
+  - react-architect:         [yes/no]
+  - react-native-architect:  [yes/no]
+  - mongo-data-modeler:      [yes/no]
+  - api-contract-broker:     [yes/no]
+  - test-runner:             [yes — N runs]
+
+Files: N created, M modified
+Tests: K written, suite all passing
+Review: N auto-fixed, M approved, K skipped
+Security review: [N issues / "n/a"]
+Simplify: [N improvements / "n/a"]
 
 Feature Brief: .autofeature/designs/[slug]-[date].md
 ```
@@ -411,22 +615,43 @@ Use AskUserQuestion with clear options:
 4. **Ambiguous feature scope** — request could mean two different things
 5. **3 hypotheses tested during debugging** — time to escalate
 6. **User Challenge** — implementation requires contradicting the stated request
+7. **Sibling repo dirty** during cross-repo run — ask whether to proceed without it
+8. **Architect agent disagreement** unresolvable by api-contract-broker
 
 ---
 
-## Methodology References
+## File Reference
 
-This skill reads these files at runtime. Edit them to change behavior.
+This orchestrator reads these at runtime. Edit them to change behavior.
 
-| File | Purpose | Based on |
-|------|---------|----------|
-| `/run/media/ryan/Files/dev/autofeature/adapted/feature-interrogation.md` | Feature understanding | gstack /office-hours (builder mode) |
-| `/run/media/ryan/Files/dev/autofeature/adapted/feature-plan.md` | Technical planning | gstack /plan-eng-review + plan-ceo-review (error maps, shadow paths) |
-| `/run/media/ryan/Files/dev/autofeature/adapted/feature-investigate.md` | Debugging when tests fail | gstack /investigate |
-| `/run/media/ryan/Files/dev/autofeature/adapted/feature-review.md` | Pre-ship code review | gstack /review |
-| `/run/media/ryan/Files/dev/autofeature/adapted/feature-review-checklist.md` | Review categories | gstack review/checklist.md + specialists |
-| `/run/media/ryan/Files/dev/autofeature/adapted/feature-design-check.md` | UI quality check | gstack review/design-checklist.md |
-| `/run/media/ryan/Files/dev/autofeature/adapted/feature-devex-check.md` | Developer experience check | gstack /plan-devex-review + /devex-review |
-| `/run/media/ryan/Files/dev/autofeature/adapted/feature-ship.md` | Commit, push, PR | gstack /ship |
-| `/run/media/ryan/Files/dev/autofeature/source/ethos.md` | Decision principles | gstack ETHOS.md |
-| `/run/media/ryan/Files/dev/autofeature/source/autoplan-principles.md` | 6 decision principles | gstack /autoplan |
+### Methodology (`$AUTOFEATURE_HOME/adapted/`)
+| File | Purpose |
+|------|---------|
+| `feature-interrogation.md` | Feature understanding |
+| `feature-plan.md` | Technical planning + error maps + shadow paths |
+| `feature-investigate.md` | Debugging when tests fail |
+| `feature-review.md` | Pre-ship code review |
+| `feature-review-checklist.md` | Review categories |
+| `feature-design-check.md` | UI quality check |
+| `feature-devex-check.md` | Developer experience check |
+| `feature-ship.md` | Commit, push, PR |
+
+### Agents (`$AUTOFEATURE_HOME/agents/`)
+| File | Purpose |
+|------|---------|
+| `express-mongo-architect.md` | Backend (Express + Mongoose) design + impl |
+| `react-architect.md` | React web design + impl |
+| `react-native-architect.md` | React Native design + impl |
+| `mongo-data-modeler.md` | Schema, indexes, queries, migrations |
+| `api-contract-broker.md` | Cross-repo contract reconciliation |
+| `test-runner.md` | Test execution + summary |
+
+### Orchestrator helpers (`$AUTOFEATURE_HOME/orchestrator/`)
+| File | Purpose |
+|------|---------|
+| `scope-gate.md` | Classify feature size before fan-out |
+| `cross-repo-detect.md` | Find sibling `*-api`/`*-mobile`/etc repos |
+| `skill-wiring.md` | When to invoke Plan/Explore/security-review/simplify/frontend-design |
+
+### Source (`$AUTOFEATURE_HOME/source/`)
+gstack reference baseline. Do not edit — diff against gstack updates instead.
