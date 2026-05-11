@@ -1,0 +1,11 @@
+{
+  "name": "autofeature",
+  "version": "1.0.0",
+  "description": "Build an entire feature end-to-end from a single prompt. Pipeline: interrogate → plan → branch → implement (parallel specialists) → test → review → ship.",
+  "author": {
+    "name": "unclefroob",
+    "url": "https://github.com/unclefroob"
+  },
+  "repository": "https://github.com/unclefroob/autofeature",
+  "commands": "./.claude/commands/"
+}

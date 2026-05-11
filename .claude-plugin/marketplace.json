@@ -1,0 +1,15 @@
+{
+  "name": "autofeature",
+  "owner": {
+    "name": "unclefroob",
+    "url": "https://github.com/unclefroob"
+  },
+  "plugins": [
+    {
+      "name": "autofeature",
+      "source": "./",
+      "description": "Build an entire feature end-to-end from a single prompt. Pipeline: interrogate → plan → branch → implement (parallel specialists) → test → review → ship.",
+      "version": "1.0.0"
+    }
+  ]
+}
