@@ -6,7 +6,7 @@ Called by the main orchestrator when a `trello.com/c/` URL is detected in the fe
 
 ## Step 1: Check MCP Availability
 
-Verify the Trello MCP tools are available in this session. Look for `mcp__trello__get_card_details` in the tool list.
+Verify the Trello MCP tools are available in this session. Look for `mcp__trello__get_card` in the tool list.
 
 If not available:
 > ⚠️ Trello MCP server is not connected.
@@ -38,7 +38,7 @@ Pattern: the path segment immediately after `/c/`.
 
 ## Step 3: Fetch Card Data
 
-Call `mcp__trello__get_card_details` with the short link or card ID.
+Call `mcp__trello__get_card` with `{ cardId: "<short link or card ID>", includeMarkdown: true }`.
 
 Extract:
 - `name` → card title
@@ -56,9 +56,9 @@ Return `TRELLO_ACTIVE = false`.
 
 ---
 
-## Step 4: Fetch Checklists
+## Step 4: Fetch Acceptance Criteria
 
-Call `mcp__trello__get_card_checklists` with the card ID from the previous step.
+Call `mcp__trello__get_acceptance_criteria` with `{ cardId: "<card ID from Step 3>" }`.
 
 Extract checklist items as a flat list of strings:
 ```
@@ -68,7 +68,7 @@ Extract checklist items as a flat list of strings:
 
 These become the acceptance criteria in the Feature Brief.
 
-If no checklists exist, skip silently.
+If no "Acceptance Criteria" checklist exists on the card, skip silently.
 
 ---
 
@@ -153,9 +153,9 @@ Wait for selection before continuing.
 
 ## Step 8: Post Comment (if A or B selected)
 
-Call `mcp__trello__add_comment_to_card` with:
-- Card ID (from Step 3)
-- Text = scope comment (from Step 6)
+Call `mcp__trello__add_comment` with:
+- `cardId`: card ID from Step 3
+- `text`: scope comment from Step 6
 
 If posting fails, warn but do not abort:
 > ⚠️ Could not post Trello comment (API error). Continuing with card content as feature request.
