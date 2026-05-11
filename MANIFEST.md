@@ -85,6 +85,7 @@ Decision logic the orchestrator reads at runtime. Edit to change scope/coordinat
 | `orchestrator/scope-gate.md` | `CUSTOM` | Classifies feature into micro / single-layer / cross-stack / cross-repo before fan-out |
 | `orchestrator/cross-repo-detect.md` | `CUSTOM` | Finds sibling `*-api`/`*-mobile`/`*-desktop`/`*-cms`/`*-website` repos under `~/dev/` |
 | `orchestrator/skill-wiring.md` | `CUSTOM` | When to invoke Plan / Explore subagents and security-review / simplify / frontend-design skills |
+| `orchestrator/trello-scope.md` | `CUSTOM` | Trello card fetch (via MCP), technical scope generation, and comment posting. Invoked when a `trello.com/c/` URL is detected in the feature request. |
 
 ---
 

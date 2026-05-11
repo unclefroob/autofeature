@@ -20,6 +20,9 @@ allowed-tools:
   - TaskCreate
   - TaskUpdate
   - Monitor
+  - mcp__trello__get_card_details
+  - mcp__trello__get_card_checklists
+  - mcp__trello__add_comment_to_card
 ---
 
 # AutoFeature — End-to-End Feature Orchestrator
@@ -55,7 +58,7 @@ If `$AUTOFEATURE_HOME` doesn't exist, abort with: `AutoFeature methodology repo 
 ## Pipeline
 
 ```
-resume? → interrogate → scope-gate → plan → branch → cross-repo-coord →
+resume? → [trello?] → interrogate → scope-gate → plan → branch → cross-repo-coord →
   implement (parallel specialists) → verify (test-runner) → review (parallel + skills) → ship
 ```
 
@@ -77,6 +80,29 @@ If checkpoints exist from a previous autofeature run on this branch, show them:
 > B) Start fresh
 
 If resuming: read `.autofeature/checkpoints/[latest].md`, reconstruct context, and jump to the phase indicated in the checkpoint's `next_step` field. Also read `.autofeature/coordination.md` if present (for cross-repo runs) — siblings, branch names, ship order.
+
+---
+
+## Step 0.5: Trello Card Detection (if URL present)
+
+**Scan the feature request for a Trello card URL:**
+
+Look for `trello.com/c/` anywhere in the ARGUMENTS string.
+
+**If found:**
+
+Read and follow `$AUTOFEATURE_HOME/orchestrator/trello-scope.md`. That file handles:
+- MCP availability check (graceful fallback if not connected)
+- Fetching card name, description, labels, checklists via `mcp__trello__*` tools
+- Generating a technical scope analysis
+- Showing a checkpoint preview with 4 options (post + use card / post + use prompt / skip post + use card / skip entirely)
+- Posting the scope comment to the Trello card (if approved)
+
+On return, `FEATURE_REQUEST` is set to either the card content or the original prompt depending on the user's choice. Use `FEATURE_REQUEST` as the canonical input for all downstream steps (Step 1 mode detection, Step 2 interrogation, Step 3 scope gate).
+
+If `trello-scope.md` set `TRELLO_SCOPE_TIER`, skip the scope gate classification in Step 3 and use that value directly.
+
+**If not found:** Skip this step entirely. `FEATURE_REQUEST` = original ARGUMENTS.
 
 ---
 
@@ -652,6 +678,7 @@ This orchestrator reads these at runtime. Edit them to change behavior.
 | `scope-gate.md` | Classify feature size before fan-out |
 | `cross-repo-detect.md` | Find sibling `*-api`/`*-mobile`/etc repos |
 | `skill-wiring.md` | When to invoke Plan/Explore/security-review/simplify/frontend-design |
+| `trello-scope.md` | Fetch Trello card via MCP, generate technical scope, post comment |
 
 ### Source (`$AUTOFEATURE_HOME/source/`)
 gstack reference baseline. Do not edit — diff against gstack updates instead.
