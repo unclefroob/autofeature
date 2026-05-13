@@ -72,13 +72,54 @@ If no `SITE_URL` was provided in args and `HAS_NETLIFY=true`: set `SITE_URL = NE
 
 ## Step 3 (AUDIT MODE): Run the SEO Audit
 
-Read and follow `$AUTOFEATURE_HOME/adapted/feature-seo-audit.md`.
+Two sources of truth are combined:
+1. **Codebase scan** (`feature-seo-audit.md`) — what's in the source files before deploy. Catches missing packages, wrong config, broken Netlify rules, semantic HTML issues.
+2. **Live site analysis** (`claude-seo` skills) — what crawlers actually see after deploy. Catches JS rendering failures, missing meta on the rendered page, schema errors, Core Web Vitals.
 
-Pass:
-- `SITE_URL` (live URL if available)
-- `HAS_NETLIFY`, `NETLIFY_SITE_ID`
+Run both in parallel where possible for speed.
 
-Save the full audit output to `.autofeature/seo-audit-[YYYY-MM-DD].md`.
+### 3a. Codebase scan (always)
+
+Spawn as a subagent to keep findings out of main context:
+
+```
+Agent({
+  description: "SEO codebase scan",
+  subagent_type: "general-purpose",
+  prompt: "Read and execute $AUTOFEATURE_HOME/adapted/feature-seo-audit.md — Steps 1 only (codebase scan, no live fetch).
+  Repo: [pwd]
+  Return the full structured findings list with severity tags. Under 600 words."
+})
+```
+
+### 3b. Live site analysis (if SITE_URL available)
+
+Run all three in a **single parallel message**:
+
+```
+[single message — all three Agent/Skill calls]
+
+Skill({ skill: "claude-seo:seo-technical", args: SITE_URL })
+  → JS rendering check, robots.txt, crawlability, Core Web Vitals, AI crawler config
+
+Skill({ skill: "claude-seo:seo-audit", args: SITE_URL })
+  → Full crawl-based audit: up to 500 pages, 15 specialist subagents, health score
+  → Note: this is thorough and may take several minutes
+
+Skill({ skill: "claude-seo:seo-page", args: SITE_URL })
+  → Deep analysis of the homepage: on-page elements, content, meta, schema
+```
+
+If no SITE_URL: skip 3b. After the codebase scan, surface this message:
+> ⚠️ No live URL — codebase scan only. For a complete audit (what crawlers actually see), re-run with `url: https://yourdomain.com`. The most impactful issues (React SPA rendering, meta tag rendering) require a live URL to confirm.
+
+### 3c. Merge findings into unified report
+
+Combine results from 3a and 3b. Deduplicate — if the same issue appears in both (e.g., "no sitemap"), merge into one finding. Mark source: `[code]` for codebase-only findings, `[live]` for crawl-only, `[both]` for confirmed in both.
+
+Save full merged report to `.autofeature/seo-audit-[YYYY-MM-DD].md`.
+
+### 3d. Show summary and offer next steps
 
 After the audit report is shown, ask:
 
@@ -143,11 +184,26 @@ Run the full autofeature pipeline (`$AUTOFEATURE_HOME/.claude/commands/autofeatu
 **Step 5 override (Technical Planning):**
 When spawning the Plan subagent, include: "This is an SEO improvement task. Consult `$AUTOFEATURE_HOME/agents/seo-architect.md` for stack-specific patterns."
 
+**Step 4a: Pre-implementation enrichment (before seo-architect runs)**
+
+If the fix involves **structured data / schema**, generate correct JSON-LD templates first:
+```
+Skill({ skill: "claude-seo:seo-schema", args: SITE_URL or "" })
+```
+Save the output as `SEO_SCHEMA_CONTEXT`. Pass it to seo-architect so it implements correct, validated JSON-LD rather than guessing structure.
+
+If the fix involves **sitemap issues**, get the current sitemap state first:
+```
+Skill({ skill: "claude-seo:seo-sitemap", args: SITE_URL or "" })
+```
+Save as `SEO_SITEMAP_CONTEXT`. Pass to seo-architect.
+
 **Step 7 override (Implementation):**
-Instead of (or in addition to) `react-architect`, spawn `seo-architect`:
+Spawn `seo-architect` as the primary implementer. If `react-architect` is also needed (e.g., adding `<Helmet>` to many existing page components), spawn both in a **single parallel message**:
 
 ```
-Read $AUTOFEATURE_HOME/agents/seo-architect.md
+[single message]
+
 Agent({
   description: "SEO implementation",
   subagent_type: "general-purpose",
@@ -156,12 +212,24 @@ Agent({
   Mode: implement
   Feature Brief: [path]
   SEO Audit: [SEO_AUDIT_PATH or 'not available']
+  Schema context: [SEO_SCHEMA_CONTEXT or 'not applicable']
+  Sitemap context: [SEO_SITEMAP_CONTEXT or 'not applicable']
   Repo: [pwd]
   Issues to fix: [FIX_REQUEST]"
 })
-```
 
-If the fix also requires component changes (e.g., adding `<Helmet>` to existing pages), spawn `react-architect` in parallel.
+Agent({  ← only if component-level changes needed
+  description: "React component SEO wiring",
+  subagent_type: "general-purpose",
+  prompt: "[react-architect.md content]
+
+  Mode: implement
+  Job: Add <Helmet> blocks to the page components listed in the Feature Brief.
+  Follow the pattern established by seo-architect in this same run.
+  Feature Brief: [path]
+  Repo: [pwd]"
+})
+```
 
 **Step 9 addition (Pre-Ship Review):**
 After the standard review passes, add one SEO-specific check:
@@ -174,21 +242,35 @@ Append to the PR body:
 
 ```markdown
 ## SEO Changes
-[List of fixes applied from audit]
+[List of fixes applied — one line per issue resolved]
+
+## Before/After
+- SEO health score (seo-audit): [N/100 → expected improvement]
+- Issues resolved: [C critical, H high, M medium]
 
 ## Verify after deploy
 - [ ] Fetch page source — confirm <title> and meta description are populated
 - [ ] https://[site]/sitemap.xml resolves
-- [ ] https://[site]/robots.txt includes Sitemap: directive  
+- [ ] https://[site]/robots.txt includes Sitemap: directive
 - [ ] Paste URL in Facebook Sharing Debugger — confirm og:image loads
-- [ ] Run Lighthouse SEO audit — target score 90+
+- [ ] Run /autofeature:seo url: https://[site] — re-audit to confirm fixes
 ```
 
 ---
 
 ## File Reference
 
+### AutoFeature files
 | File | Purpose |
 |------|---------|
-| `adapted/feature-seo-audit.md` | SEO audit methodology — codebase scan + live site check + findings report |
-| `agents/seo-architect.md` | SEO specialist — implements prerendering, meta tags, sitemap, Netlify config, structured data |
+| `adapted/feature-seo-audit.md` | Codebase scan — checks source files for missing packages, broken config, semantic HTML issues |
+| `agents/seo-architect.md` | React/Vite/Netlify SEO implementer — prerendering, meta tags, sitemap, Netlify config, structured data |
+
+### claude-seo skills (live site analysis)
+| Skill | When invoked | What it contributes |
+|-------|-------------|---------------------|
+| `claude-seo:seo-audit` | Audit mode with URL | Full crawl (500 pages), 15-specialist delegation, health score 0-100 |
+| `claude-seo:seo-technical` | Audit mode with URL | JS rendering check, robots.txt, Core Web Vitals, AI crawler config |
+| `claude-seo:seo-page` | Audit mode with URL | Deep homepage analysis — on-page elements, content quality, meta |
+| `claude-seo:seo-schema` | Fix mode (schema work) | Detects + validates existing schema, generates correct JSON-LD templates |
+| `claude-seo:seo-sitemap` | Fix mode (sitemap work) | Validates sitemap structure, generates missing pages list |
