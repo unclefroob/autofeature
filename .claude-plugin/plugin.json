@@ -1,6 +1,6 @@
 {
   "name": "autofeature",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Build an entire feature end-to-end from a single prompt. Pipeline: interrogate → plan → branch → implement (parallel specialists) → test → review → ship. Includes /fullrun (deploy verification) and /seo (SEO audit + fix) commands.",
   "author": {
     "name": "unclefroob",
