@@ -47,6 +47,8 @@ Working files used by the skill. Edit these freely — changes take effect immed
 | `adapted/feature-review-checklist.md` | `source/review-checklist.md` + `source/review-specialists-security.md` + `source/review-specialists-testing.md` | `ADAPTED` | Rails/Python refs replaced with Node/React/RN/Swift/Kotlin; specialists merged inline; Fix-First heuristic unchanged |
 | `adapted/feature-design-check.md` | `source/review-design-checklist.md` | `ADAPTED` | No gstack-diff-scope; added React Native specific checks; added Swift/SwiftUI checks; added missing UI states category |
 | `adapted/feature-ship.md` | `source/ship.md` | `ADAPTED` | No gstack bins; no eval suites; no gstack metrics; detects test command dynamically; simplified CHANGELOG handling |
+| `adapted/feature-deploy-verify.md` | *(none)* | `CUSTOM` | Post-ship deploy verification — Netlify branch deploy polling, Railway log health check, E2E smoke against preview URL, PR body update with preview links |
+| `adapted/feature-seo-audit.md` | *(none)* | `CUSTOM` | SEO audit methodology — codebase scan (rendering strategy, meta tags, sitemap, robots.txt, structured data, Netlify config, semantic HTML), live site check via WebFetch, findings report with severity scoring and React/Vite/Netlify fix reference |
 
 ---
 
@@ -57,6 +59,8 @@ The Claude Code custom command. No gstack source — written from scratch to orc
 | File | Status | Description |
 |------|--------|-------------|
 | `.claude/commands/autofeature.md` | `CUSTOM` | Main orchestration. Reads adapted files + agents/ + orchestrator/ at runtime. Supports automated + checkpoint modes. Pipeline: interrogate → scope-gate → plan → branch → implement (parallel) → test → review → ship. |
+| `.claude/commands/fullrun.md` | `CUSTOM` | Extends autofeature with Railway + Netlify MCP deploy verification. Adds platform detection (Step 2), deploy polling + E2E smoke against real preview URLs (Step 10.5), and PR body preview URL injection. Does not modify autofeature.md. |
+| `.claude/commands/seo.md` | `CUSTOM` | SEO audit + fix command. Audit mode: scans codebase + live site via WebFetch + Netlify MCP, scores against React/Vite/Netlify checklist, produces prioritised findings. Fix mode: implements improvements via autofeature pipeline using seo-architect specialist. Supports Trello card creation for audit findings. |
 
 ---
 
@@ -71,6 +75,7 @@ Self-contained subagent prompts. Spawned via the `Agent` tool (subagent_type=`ge
 | `agents/react-native-architect.md` | `CUSTOM` | Mobile specialist: screens, navigation, Platform.OS, permissions, native modules, lists |
 | `agents/mongo-data-modeler.md` | `CUSTOM` | Schema design, index strategy, query plan review, migration plan |
 | `agents/api-contract-broker.md` | `CUSTOM` | Cross-repo contract reconciliation when backend + frontend(s) are touched in one run |
+| `agents/seo-architect.md` | `CUSTOM` | SEO specialist — implements prerendering (vite-plugin-prerender/vite-ssg), react-helmet-async per-route meta tags, sitemap, robots.txt, Netlify canonical redirects/_headers, JSON-LD structured data; flags OG image, copy, and dynamic route decisions to user |
 | `agents/test-runner.md` | `CUSTOM` | Test execution proxy — keeps multi-MB test logs out of orchestrator context, returns <2KB summary |
 | `agents/README.md` | `CUSTOM` | Roster, invocation pattern, parallel fan-out usage |
 
@@ -155,6 +160,7 @@ Additions not in any gstack source:
 
 | Addition | File | Purpose |
 |----------|------|---------|
+| Railway + Netlify deploy verification | `adapted/feature-deploy-verify.md` + `.claude/commands/fullrun.md` | Post-ship preview deploy polling, Railway log health check, E2E smoke against real Netlify preview URLs, PR body enrichment with preview links |
 | Checkpoint/resume capability | `.claude/commands/autofeature.md` | Resume interrupted feature builds |
 | React Native specific design checks | `adapted/feature-design-check.md` | RN has different design concerns than web |
 | Swift/SwiftUI design checks | `adapted/feature-design-check.md` | iOS-specific accessibility + layout patterns |
