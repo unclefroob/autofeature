@@ -9,8 +9,10 @@ Specialist subagent prompts spawned by the autofeature orchestrator. Each file i
 | [`express-mongo-architect`](express-mongo-architect.md) | Express.js + Mongoose backend | Backend changes (routes, controllers, models, middleware) |
 | [`react-architect`](react-architect.md) | React web (Vite/Next/CRA/Remix) | Web frontend changes |
 | [`react-native-architect`](react-native-architect.md) | React Native (Expo or bare) | Mobile changes |
+| [`swift-architect`](swift-architect.md) | Swift native (iOS, macOS, watchOS) | Native Apple platform changes |
 | [`mongo-data-modeler`](mongo-data-modeler.md) | MongoDB schema + queries + indexes | New collection, schema change, index proposal, migration, or query plan concern |
 | [`api-contract-broker`](api-contract-broker.md) | Cross-repo coordination | Backend + frontend(s) touched in same run |
+| [`product-strategist`](product-strategist.md) | Product review (CEO / PM / flow-walker) | Pre-build product review (Step 4.5) and standalone `/autofeature:product-review` |
 | [`test-runner`](test-runner.md) | Test execution + summary | Verify gate (Step 6) — keeps test logs out of orchestrator context |
 
 ## Invocation pattern
@@ -31,6 +33,13 @@ Why this pattern:
 - Edit a file → next run picks up the change, no reinstall
 - The fleet works on any machine that has this repo cloned
 
+**Exception — `product-strategist`:** this one is driven by the **Workflow** tool, not the
+`Agent`-fan-out pattern above. The orchestrator doesn't read `product-strategist.md` and pass it
+inline; instead `adapted/feature-product-review.md` carries a Workflow script whose `agent()` calls
+embed the three lens prompts. `product-strategist.md` is the **editable spec** (rubric, what each
+lens owns, severity, output contract) — when you change it, mirror the change into that script's
+inline prompts (workflows run in a sandbox and can't read the file at runtime).
+
 ## Calling multiple in parallel
 
 For cross-stack or cross-repo features, spawn architects concurrently:
@@ -50,10 +59,11 @@ Agents communicate by writing to the Feature Brief, not by direct messaging. Eac
 
 Sections an agent may write:
 - `## Backend Plan (express-mongo-architect)`
-- `## Frontend Plan (react-architect)` or `## Mobile Plan (react-native-architect)`
+- `## Frontend Plan (react-architect)` or `## Mobile Plan (react-native-architect)` or `## Native Plan (swift-architect)`
 - `## Data Model Review (mongo-data-modeler)`
 - `## API Contract (api-contract-broker)`
 - `## Scope` (orchestrator, via scope-gate)
+- `## Product Review` (orchestrator, via the product-review Workflow — pre-build gaps & flows)
 - `## Test Run: [unit|e2e|integration]` (test-runner — these can be transient, not always appended)
 
 ## Adding a new agent

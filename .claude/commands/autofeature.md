@@ -16,6 +16,7 @@ allowed-tools:
   - AskUserQuestion
   - WebSearch
   - Agent
+  - Workflow
   - Skill
   - TaskCreate
   - TaskUpdate
@@ -58,7 +59,7 @@ If `$AUTOFEATURE_HOME` doesn't exist, abort with: `AutoFeature methodology repo 
 ## Pipeline
 
 ```
-resume? → [trello?] → interrogate → scope-gate → plan → branch → cross-repo-coord →
+resume? → [trello?] → interrogate → scope-gate → product-review (pre-build) → plan → branch → cross-repo-coord →
   implement (parallel specialists) → verify (test-runner) → review (parallel + skills) → ship
 ```
 
@@ -137,15 +138,19 @@ Only interrupt for a **User Challenge**: when implementation would need to funda
 Task 1: Feature Interrogation        → "Interrogating feature requirements"
 Task 2: Scope Classification         → "Classifying feature scope"
 Task 3: Cross-Repo Detection         → "Detecting sibling repos"
-Task 4: Technical Planning           → "Planning implementation"
-Task 5: Create Feature Branch(es)    → "Creating feature branch(es)"
-Task 6: Implementation (parallel)    → "Implementing feature"
-Task 7: Verification Gate            → "Running test suite"
-Task 8: Pre-Ship Review              → "Running pre-ship review"
-Task 9: Ship                         → "Shipping — commits, push, PR(s)"
+Task 4: Product Review (pre-build)   → "Reviewing product fit — gaps & flows"
+Task 5: Technical Planning           → "Planning implementation"
+Task 6: Create Feature Branch(es)    → "Creating feature branch(es)"
+Task 7: Implementation (parallel)    → "Implementing feature"
+Task 8: Verification Gate            → "Running test suite"
+Task 9: Pre-Ship Review              → "Running pre-ship review"
+Task 10: Ship                        → "Shipping — commits, push, PR(s)"
 ```
 
 Set up `addBlockedBy` dependencies so each task blocks on the previous one.
+
+> Task 4 (Product Review) is **skipped for `micro` tier** and when the feature request carries a
+> `[skip-product-review]` marker — mark it completed immediately in those cases (see Step 4.5).
 
 ---
 
@@ -239,6 +244,61 @@ For non-cross-repo tiers: skip this step.
 
 ---
 
+## Step 4.5: Product Review (Pre-Build)
+
+A CEO / PM / flow-walker pass over the **product** before any code is written: does this feature, in
+the context of what already exists, make product sense — and does it leave gaps or broken flows?
+Runs the multi-agent product-review **Workflow**; its findings feed the plan.
+
+**Skip this step entirely if:**
+- Scope tier is `micro` (a one-file change doesn't warrant a product panel), **or**
+- `FEATURE_REQUEST` contains the `[skip-product-review]` marker (this run is itself a fix the
+  product review generated, or an SEO/narrow fix that opted out — prevents recursion).
+
+Mark Task 4 completed and proceed to Step 5 in those cases.
+
+**Otherwise:**
+
+Read and follow `$AUTOFEATURE_HOME/adapted/feature-product-review.md` in **`feature` mode**. Invoke
+the **Workflow** tool with the script it contains:
+
+```
+Workflow({
+  script: <the script from feature-product-review.md>,
+  args: {
+    repo:         "[pwd]",
+    mode:         "feature",
+    featureBrief: ".autofeature/designs/[slug]-[date].md",
+    siteUrl:      "[SITE_URL if a deployed site is known, else '']"
+  }
+})
+```
+
+The workflow maps the existing product + the proposed feature, fans out the three lenses, verifies
+high-severity gap/flow claims against the real code, and returns a synthesis. Append it to the
+Feature Brief under `## Product Review` (summary, prioritized findings, recommended next features) —
+the Plan subagent in Step 5 reads this section.
+
+### Mode handling
+
+**AUTOMATED:** Fold 🔴/🟡 **in-scope** gaps into the work (Step 5's plan picks them up from the
+brief). Surface a **User Challenge** (emergency stop) *only* when a finding means the feature **as
+requested** would ship a broken core flow or a half-capability — i.e. building it as-asked
+contradicts the user's actual goal. Otherwise proceed; never silently expand scope beyond closing
+in-scope gaps.
+
+**CHECKPOINT:**
+> Product review (pre-build) found [C critical, H high] gaps/flow issues for this feature:
+>
+> [summary + top findings]
+>
+> A) Proceed as planned — log the rest as fast-follows
+> B) Expand this feature's scope to close the 🔴/🟡 in-scope gaps before building
+> C) Revise the feature request — [tell me what to change]
+> D) Abort
+
+---
+
 ## Step 5: Technical Planning
 
 ### 5a. Delegate the plan to the Plan subagent
@@ -249,6 +309,10 @@ Agent({
   subagent_type: "Plan",
   prompt: "Read the Feature Brief at .autofeature/designs/[slug]-[date].md.
   Also read $AUTOFEATURE_HOME/adapted/feature-plan.md for methodology.
+
+  If the brief has a '## Product Review' section (pre-build gaps & flow issues), fold its in-scope
+  🔴/🟡 gaps into the plan and note any deferred to fast-follow. These are product gaps to close,
+  not engineering nits.
 
   Produce the Implementation Plan section including:
   - Step 0: Scope Challenge
@@ -643,6 +707,7 @@ Use AskUserQuestion with clear options:
 6. **User Challenge** — implementation requires contradicting the stated request
 7. **Sibling repo dirty** during cross-repo run — ask whether to proceed without it
 8. **Architect agent disagreement** unresolvable by api-contract-broker
+9. **Product gap challenge (pre-build)** — the Step 4.5 product review finds the feature *as requested* ships a broken core flow or a half-capability; confirm scope before building
 
 ---
 
@@ -654,6 +719,7 @@ This orchestrator reads these at runtime. Edit them to change behavior.
 | File | Purpose |
 |------|---------|
 | `feature-interrogation.md` | Feature understanding |
+| `feature-product-review.md` | Pre-build CEO/PM/flow-walker product review — gaps & broken flows (Workflow) |
 | `feature-plan.md` | Technical planning + error maps + shadow paths |
 | `feature-investigate.md` | Debugging when tests fail |
 | `feature-review.md` | Pre-ship code review |
@@ -670,6 +736,7 @@ This orchestrator reads these at runtime. Edit them to change behavior.
 | `react-native-architect.md` | React Native design + impl |
 | `mongo-data-modeler.md` | Schema, indexes, queries, migrations |
 | `api-contract-broker.md` | Cross-repo contract reconciliation |
+| `product-strategist.md` | CEO / PM / flow-walker product reviewer — pre-build gaps & broken flows |
 | `test-runner.md` | Test execution + summary |
 
 ### Orchestrator helpers (`$AUTOFEATURE_HOME/orchestrator/`)

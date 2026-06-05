@@ -17,6 +17,7 @@ allowed-tools:
   - AskUserQuestion
   - WebSearch
   - Agent
+  - Workflow
   - Skill
   - TaskCreate
   - TaskUpdate
@@ -45,7 +46,7 @@ Runs the **identical pipeline** as `autofeature.md` with three additions:
 
 1. **Step 2 Extension** — detect Netlify site and Railway service linked to this repo
 2. **Step 10.5** — wait for preview deploys, run E2E smoke against real URLs, update PR with preview links
-3. **Task 10** added to the pipeline task list
+3. **Task 11** added to the pipeline task list
 
 **Base pipeline:** Read and execute ALL steps from `$AUTOFEATURE_HOME/.claude/commands/autofeature.md`. Then apply the additions below at the indicated injection points.
 
@@ -126,10 +127,11 @@ Continue normally.
 When creating the pipeline tasks via TaskCreate, add one additional task:
 
 ```
-Task 10: Deploy Verification → "Verifying preview deploys (Netlify + Railway)"
+Task 11: Deploy Verification → "Verifying preview deploys (Netlify + Railway)"
 ```
 
-Set `addBlockedBy: [Task 9]` so it blocks on Ship.
+Set `addBlockedBy: [Task 10]` so it blocks on Ship. (Ship is Task 10 since the base pipeline added
+Task 4 "Product Review.")
 
 ---
 

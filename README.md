@@ -2,7 +2,7 @@
 
 Build a complete feature end-to-end from a single prompt.
 
-**Pipeline:** interrogate → plan → branch → implement → test → review → ship
+**Pipeline:** interrogate → scope → product-review → plan → branch → implement → test → review → ship
 
 **Supports:** Node.js, React, React Native, Swift, Kotlin
 
@@ -53,6 +53,9 @@ If no mode is specified, Claude will ask.
 
 ### Phase 1: Feature Interrogation
 Reads the codebase, detects the tech stack, asks 6 focused questions (or answers them itself in automated mode). Produces a Feature Brief saved to `.autofeature/designs/`.
+
+### Phase 1.5: Product Review (pre-build)
+A CEO / PM / flow-walker pass over the product *before* any code is written. A multi-agent [Workflow](https://docs.claude.com/en/docs/claude-code) maps the product surface, fans out three product lenses in parallel, adversarially verifies any "broken flow" claim against the real code, and folds the resulting gaps into the plan. Skipped for `micro` changes. Also available standalone as `/autofeature:product-review`.
 
 ### Phase 2: Technical Planning
 Engineering review of the planned approach. Checks architecture, code quality, unit test coverage, and performance. Produces an Implementation Plan.

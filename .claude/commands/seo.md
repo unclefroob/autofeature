@@ -174,7 +174,9 @@ Call `mcp__trello__add_card_to_list` with the formatted card. Confirm success. E
 
 Run the full autofeature pipeline (`$AUTOFEATURE_HOME/.claude/commands/autofeature.md`) with:
 
-**Feature request:** `FIX_REQUEST` (from fix: arg or from audit selection)
+**Feature request:** `FIX_REQUEST` (from fix: arg or from audit selection) — append the
+`[skip-product-review]` marker so the pre-build product review (Step 4.5) doesn't run a CEO/PM pass
+on an SEO tweak.
 
 **Additional context injected into Step 2 (Feature Interrogation):**
 - SEO audit findings (if available at `SEO_AUDIT_PATH`) — include in Feature Brief under `## SEO Audit`
