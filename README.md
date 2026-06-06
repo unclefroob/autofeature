@@ -10,17 +10,29 @@ Build a complete feature end-to-end from a single prompt.
 
 ## Install
 
-Copy the command to your project's Claude Code commands directory:
+### As a plugin (recommended)
 
-```bash
-# For a single project
-cp .claude/commands/autofeature.md /path/to/your/project/.claude/commands/autofeature.md
+The commands read `adapted/`, `agents/`, and `orchestrator/` at runtime — these **ship with the
+plugin** and resolve automatically from the plugin root (`$CLAUDE_PLUGIN_ROOT`). No path setup:
 
-# For global use (all projects)
-cp .claude/commands/autofeature.md ~/.claude/commands/autofeature.md
+```
+/plugin marketplace add unclefroob/autofeature
+/plugin install autofeature@autofeature
 ```
 
-The adapted methodology files are referenced at runtime. Copy them to a stable location and update the paths in `autofeature.md` if needed.
+### As a dev clone
+
+Clone the repo; the commands prefer `$CLAUDE_PLUGIN_ROOT`, then `$AUTOFEATURE_HOME`, then
+`~/dev/autofeature`:
+
+```bash
+git clone https://github.com/unclefroob/autofeature ~/dev/autofeature
+# only if you cloned somewhere else:
+export AUTOFEATURE_HOME=/path/to/autofeature
+```
+
+> Don't `cp` just the command file — it reads ~18 methodology/agent/orchestrator files at runtime, so
+> the whole repo (or the installed plugin) must be present at the resolved root.
 
 ---
 

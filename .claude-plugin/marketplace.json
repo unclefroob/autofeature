@@ -9,7 +9,7 @@
       "name": "autofeature",
       "source": "./",
       "description": "Build an entire feature end-to-end from a single prompt. Pipeline: interrogate → scope → product-review → plan → branch → implement (parallel specialists) → test → review → ship. Includes /fullrun, /seo, /scope, /product-review, /feature-review, and /market-review commands.",
-      "version": "1.6.0"
+      "version": "1.6.1"
     }
   ]
 }

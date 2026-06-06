@@ -1,6 +1,6 @@
 {
   "name": "autofeature",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "Build an entire feature end-to-end from a single prompt. Pipeline: interrogate → scope → product-review → plan → branch → implement (parallel specialists) → test → review → ship. Includes /fullrun (deploy verification), /seo (SEO audit + fix), /scope (standalone scope classification), /product-review (CEO/PM/flow-walker whole-product gaps & flows), /feature-review (focused opinion + build advice for one feature), and /market-review (market demand, competitive gap & VC fundability with cited research) commands.",
   "author": {
     "name": "unclefroob",

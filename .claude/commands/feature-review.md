@@ -22,7 +22,10 @@ before you build.
 ## $AUTOFEATURE_HOME
 
 ```bash
-AUTOFEATURE_HOME="${AUTOFEATURE_HOME:-$HOME/dev/autofeature}"
+# Files ship with the plugin — prefer its root; fall back to an explicit home or dev clone.
+for _d in "$AUTOFEATURE_HOME" "${CLAUDE_PLUGIN_ROOT}" "$HOME/dev/autofeature"; do
+  [ -n "$_d" ] && [ -d "$_d/adapted" ] && { AUTOFEATURE_HOME="$_d"; break; }
+done
 ```
 
 If `$AUTOFEATURE_HOME` doesn't exist, abort with:

@@ -40,10 +40,15 @@ allowed-tools:
 
 ## $AUTOFEATURE_HOME
 
-All methodology + agent + orchestrator files live under one root. Default:
+All methodology + agent + orchestrator files live under one root. They **ship with the plugin**, so
+the commands resolve them from the plugin's own root (`$CLAUDE_PLUGIN_ROOT`, set automatically for an
+installed plugin); an explicit `$AUTOFEATURE_HOME` or a local dev clone also works:
 
 ```bash
-AUTOFEATURE_HOME="${AUTOFEATURE_HOME:-$HOME/dev/autofeature}"
+# Files ship with the plugin — prefer its root; fall back to an explicit home or dev clone.
+for _d in "$AUTOFEATURE_HOME" "${CLAUDE_PLUGIN_ROOT}" "$HOME/dev/autofeature"; do
+  [ -n "$_d" ] && [ -d "$_d/adapted" ] && { AUTOFEATURE_HOME="$_d"; break; }
+done
 ```
 
 Resolved layout:
@@ -52,7 +57,7 @@ Resolved layout:
 - `$AUTOFEATURE_HOME/orchestrator/` — scope-gate, cross-repo-detect, skill-wiring
 - `$AUTOFEATURE_HOME/source/` — gstack reference (do not edit)
 
-If `$AUTOFEATURE_HOME` doesn't exist, abort with: `AutoFeature methodology repo missing. Expected at $AUTOFEATURE_HOME. Clone from <user repo>.`
+If no candidate resolves (none contains `adapted/`), abort with: `AutoFeature methodology files not found. They ship with the plugin — reinstall it, or for a dev clone set AUTOFEATURE_HOME=/path/to/autofeature.`
 
 ---
 
