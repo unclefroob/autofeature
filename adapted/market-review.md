@@ -141,6 +141,18 @@ const MEMO = {
       milestones: { type: 'array', items: { type: 'string' } }, altFunding: { type: 'array', items: { type: 'string' } } } },
     risks: { type: 'array', items: { type: 'string' } }, nextSteps: { type: 'array', items: { type: 'string' } },
     investorOnePager: { type: 'string' }, confidence: { type: 'string' },
+    citationsChecked: { type: 'object', properties: { confirmed: { type: 'number' }, unconfirmed: { type: 'number' }, dead: { type: 'number' }, stale: { type: 'number' } } },
+  },
+}
+// Per-citation re-verification verdict. 'dead' = URL didn't resolve; 'unconfirmed' = page loaded
+// but the figure is absent/different; 'confirmed' = page loads AND states the figure. Keep the
+// three states distinct — a confident citation to a real page that doesn't say what was claimed
+// is the most useful signal.
+const CLAIM_VERDICT = {
+  type: 'object', required: ['supported', 'reason'],
+  properties: {
+    supported: { type: 'string', enum: ['confirmed', 'unconfirmed', 'dead'] },
+    reason: { type: 'string' }, foundFigure: { type: 'string' }, stale: { type: 'boolean' },
   },
 }
 
@@ -204,6 +216,45 @@ Build the strongest case to PASS. Flag inflated/unsourced numbers (especially to
   { schema: BEAR, phase: 'Bear case' }
 )
 
+// ---------- Phase 3.5: Verify citations (re-fetch each cited URL; web only) ----------
+// The bear case checks plausibility, not citation validity. This pass re-opens the cited URLs
+// and confirms they actually support the stated figure — funding comps are the easiest to fabricate.
+let verified = []
+const citeCounts = { confirmed: 0, unconfirmed: 0, dead: 0, stale: 0 }
+if (WEB) {
+  phase('Verify')
+  const VERIFY_CAP = (args.maxVerify && Number(args.maxVerify)) || 6
+  // candidates, funding-comps first (highest fabrication risk), then the other cited sources
+  const compClaims = (vc?.comparableRaises || []).filter(c => c && c.url).map(c => ({
+    kind: 'comp', url: c.url,
+    what: `${c.company || '?'} ${c.stage || ''} ${c.amount || ''} @ ${c.valuation || '?'} (${c.year || '?'})`.replace(/\s+/g, ' ').trim(),
+  }))
+  const sourceClaims = allSources.filter(s => s && s.url).map(s => ({ kind: 'source', url: s.url, what: s.claim || s.note || 'cited figure' }))
+  const seenU = new Set()
+  const candidates = [...compClaims, ...sourceClaims].filter(c => {
+    const u = (c.url || '').trim(); if (!u || seenU.has(u)) return false; seenU.add(u); return true
+  })
+  let toVerify = candidates, vcap = 0
+  if (toVerify.length > VERIFY_CAP) { vcap = toVerify.length - VERIFY_CAP; toVerify = toVerify.slice(0, VERIFY_CAP) }
+  if (vcap) log(`Verifying top ${VERIFY_CAP} of ${candidates.length} citations (${vcap} not re-checked — flagged in memo)`)
+  verified = (await parallel(toVerify.map(c => () =>
+    agent(
+      `Re-fetch this URL with WebFetch and judge whether the page actually CONTAINS and SUPPORTS the cited claim. Do not trust the citation — open it.
+URL: ${c.url}
+Cited for: "${c.what}"
+supported = "confirmed" only if the page loads AND states the figure/fact; "unconfirmed" if it loads but the number is absent or different; "dead" if it 404s or doesn't resolve. foundFigure = the actual number on the page (or ''). stale = true if the supporting figure is clearly >18 months old.`,
+      { label: `verify:${c.kind}`, phase: 'Verify', schema: CLAIM_VERDICT }
+    ).then(v => ({ ...c, ...v }))
+  ))).filter(Boolean)
+  for (const v of verified) {
+    if (v.supported === 'confirmed') citeCounts.confirmed++
+    else if (v.supported === 'dead') citeCounts.dead++
+    else citeCounts.unconfirmed++
+    if (v.stale) citeCounts.stale++
+  }
+  log(`Citations: ${citeCounts.confirmed} confirmed, ${citeCounts.unconfirmed} unconfirmed, ${citeCounts.dead} dead${citeCounts.stale ? `, ${citeCounts.stale} stale` : ''}`)
+}
+
 // ---------- Phase 4: Synthesize ----------
 phase('Synthesize')
 const memo = await agent(
@@ -215,6 +266,10 @@ Gap: ${JSON.stringify(gap)}
 VC: ${JSON.stringify(vc)}
 Bear: ${JSON.stringify(bear)}
 Distinct sources cited so far: ${distinctUrls.size}
+Citation re-verification (${WEB ? 'on' : 'off — figures unverified'}): ${JSON.stringify(citeCounts)}
+Per-citation verdicts (re-fetched URLs): ${JSON.stringify(verified)}
+
+DOWNGRADE confidence and append a "⚠ unverified" tag to any figure whose citation came back "unconfirmed" or "dead"; append "⚠ stale" to a confirmed comp >18 months old. KEEP unverifiable comps in the memo with the loud tag — don't drop the lead. Treat an unverified citation exactly like a claim the bear successfully undercut.
 
 Produce:
 - verdict: { useful: "yes|no|partly — one line", marketGap: "clear|contested|none — one line", fundable: "yes|no|conditional — one line" }
@@ -225,6 +280,7 @@ Produce:
 - risks: top risks (merge VC objections + bear kill-shots; dedupe).
 - nextSteps: 3–6 concrete next actions (validate X, build Y, talk to Z investors, hit milestone M).
 - investorOnePager: a tight, honest paragraph for an investor (problem, who, wedge, why-now, the ask) — no hype.
+- citationsChecked: copy the counts object above ({ confirmed, unconfirmed, dead, stale }).
 - confidence: overall + what would raise it.
 
 Be honest above all. If the answer is "useful but NOT venture-fundable," say exactly that and point to the right funding path.`,
@@ -238,6 +294,8 @@ return {
   ...memo,
   sourcesCited: distinctUrls.size,
   sources: allSources,
+  citationsChecked: citeCounts,        // authoritative JS counts (override any model value)
+  verifiedCitations: verified,
   bear: { killShots: bear?.killShots || [], graveyards: bear?.graveyards || [] },
 }
 ```
@@ -251,7 +309,8 @@ Render the returned memo as an investment memo, and save the full version to
 
 ```
 === Market Review: [product / idea] ===
-Stage: [stage]   Web research: [on/off]   Sources cited: [N]
+Stage: [stage]   Web research: [on/off]
+Sources cited: [N]  ·  Re-verified: [confirmed] ✓ confirmed / [unconfirmed] ⚠ unconfirmed / [dead] ✗ dead[ · [stale] stale]
 
 VERDICT
   Useful?       [yes|no|partly] — [one line]
@@ -263,6 +322,7 @@ Bottom line
 
 1. Useful?
   [usefulness — demand evidence, painkiller/vitamin, market size TAM/SAM/SOM with method]
+  (tag each high-stakes figure inline per its citation verdict: [verified ✓] / [unverified ⚠] / [stale])
 
 2. Market gap?
   [the gap, competitors/substitutes, the wedge, moat & copyability, why-now]
@@ -270,6 +330,7 @@ Bottom line
 3. Fundable?
   Verdict:        [verdict]
   Likely stage:   [stage]  ·  Check: [checkRange]  ·  Valuation: [valuationBallpark]
+  Comparable raises: [company stage amount @ valuation (year) — tag [verified ✓] / [unverified ⚠] / [stale] each]
   Milestones to unlock it: [milestones]
   If not VC:      [altFunding]
 

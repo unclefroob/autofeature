@@ -44,7 +44,10 @@ Also capture any **constraints/goals** the user stated (deadline, must-reuse-X, 
 target users) as `NOTES`.
 
 - If both the argument and the conversation are empty/ambiguous about which feature, ask **one**
-  short clarifying question: *"Which feature should I review — [best guess]?"* Then proceed.
+  short clarifying question: *"Which feature should I review — [best guess]?"* — and **STOP**. Do
+  **not** invoke the Workflow tool until a concrete feature is resolved; running it on an empty or
+  `undefined` feature spends agents and emits generic advice dressed as scoped advice, which is worse
+  than asking. (The workflow has a matching fail-fast backstop, but the command must not rely on it.)
 - Briefly echo what you're reviewing so the user can correct course:
   > Reviewing: **[FEATURE]** — [one-line restatement]. Running a focused product + build review…
 

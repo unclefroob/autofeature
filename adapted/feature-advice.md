@@ -68,9 +68,25 @@ export const meta = {
   ],
 }
 
-const REPO    = args.repo
-const FEATURE = args.feature
+const REPO    = (args.repo && String(args.repo).trim() && String(args.repo).toLowerCase() !== 'undefined') ? args.repo : '.'
 const NOTES   = args.notes || ''
+const _f      = String(args.feature ?? '').trim()
+const FEATURE = _f
+
+// Fail-fast: no feature to review. Return a valid recommendation (never throw) instead of spending
+// agents on a generic review. NOTE: must catch the literal string 'undefined' — it is truthy, so a
+// bare `if (!FEATURE)` would miss the exact case that bit us.
+if (_f === '' || _f.toLowerCase() === 'undefined' || _f.toLowerCase() === 'null') {
+  return {
+    feature: '', stack: '',
+    opinion: 'No feature was supplied to review.',
+    recommendedApproach: 'Re-run /autofeature:feature-review with a one-line description of the feature (and the repo if not the current directory).',
+    scope: { mvp: [], fastFollow: [], cut: [] },
+    buildPlan: ['Name the feature, then re-run feature-review'],
+    risks: [], openQuestions: ['Which feature should I review?'],
+    readyToBuild: false, suggestedAutofeaturePrompt: '',
+  }
+}
 
 // ---------- schemas ----------
 const SCAN = {

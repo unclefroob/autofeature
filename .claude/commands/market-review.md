@@ -77,14 +77,20 @@ Workflow({
     repo:        "[pwd]",
     idea:        "[IDEA]",
     notes:       "[NOTES or '']",
-    webResearch: true | false
+    webResearch: true | false,
+    maxVerify:   6            // optional — how many cited URLs the Verify phase re-fetches
   }
 })
 ```
 
 The workflow frames the idea, runs the three analysts in parallel (each citing sources), runs the
-bear-case stress test, and returns a synthesized investment memo. It makes live web calls when
-`webResearch` is true — it may take a few minutes. Do **not** redo the research yourself.
+bear-case stress test, **re-fetches the cited URLs to confirm they actually support their figures**
+(Verify phase — funding comps first, web only), and returns a synthesized investment memo.
+
+Before invoking, give a one-line **cost preview** so the run isn't a surprise:
+> Running ~6 agents + live web research + a short citation-verify pass — a few minutes. (`offline:` skips the web.)
+
+Do **not** redo the research yourself.
 
 ---
 
@@ -92,6 +98,11 @@ bear-case stress test, and returns a synthesized investment memo. It makes live 
 
 Format the returned memo using the **Report output — Investment Memo** block in `market-review.md`.
 Save the full memo (including the sources appendix) to `.autofeature/market-review-[YYYY-MM-DD].md`.
+
+Surface the **citation trust signal** from `citationsChecked`: the header shows
+`Sources cited: N · Re-verified: X ✓ / Y ⚠ / Z ✗`, and high-stakes figures (comps, top-down TAM)
+carry inline `[verified ✓]` / `[unverified ⚠]` / `[stale]` tags. Keep unverified comps with their
+loud tag rather than dropping them.
 
 Always keep the closing caveat: estimates are decision-support, not verified fact — validate before
 betting on them; not financial advice or a guarantee of funding.
