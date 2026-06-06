@@ -1,7 +1,7 @@
 {
   "name": "autofeature",
-  "version": "1.4.0",
-  "description": "Build an entire feature end-to-end from a single prompt. Pipeline: interrogate → scope → product-review → plan → branch → implement (parallel specialists) → test → review → ship. Includes /fullrun (deploy verification), /seo (SEO audit + fix), /scope (standalone scope classification), and /product-review (CEO/PM/flow-walker gaps & flows) commands.",
+  "version": "1.5.0",
+  "description": "Build an entire feature end-to-end from a single prompt. Pipeline: interrogate → scope → product-review → plan → branch → implement (parallel specialists) → test → review → ship. Includes /fullrun (deploy verification), /seo (SEO audit + fix), /scope (standalone scope classification), /product-review (CEO/PM/flow-walker whole-product gaps & flows), and /feature-review (focused opinion + build advice for one feature) commands.",
   "author": {
     "name": "unclefroob",
     "url": "https://github.com/unclefroob"

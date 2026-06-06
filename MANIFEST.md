@@ -50,6 +50,7 @@ Working files used by the skill. Edit these freely — changes take effect immed
 | `adapted/feature-deploy-verify.md` | *(none)* | `CUSTOM` | Post-ship deploy verification — Netlify branch deploy polling, Railway log health check, E2E smoke against preview URL, PR body update with preview links |
 | `adapted/feature-seo-audit.md` | *(none)* | `CUSTOM` | SEO audit methodology — codebase scan (rendering strategy, meta tags, sitemap, robots.txt, structured data, Netlify config, semantic HTML), live site check via WebFetch, findings report with severity scoring and React/Vite/Netlify fix reference |
 | `adapted/feature-product-review.md` | *(none)* | `CUSTOM` | CEO/PM/flow-walker product review — Workflow script (map product surface → 3 lenses in parallel → adversarially verify gap/flow claims against code → synthesize), severity rubric, report format, and report-then-offer-to-fix hand-off. Runs pre-build (Step 4.5) and standalone |
+| `adapted/feature-advice.md` | *(none)* | `CUSTOM` | Scoped single-feature review — lean Workflow script (scan only the relevant code → product advisor ∥ build advisor → synthesize one opinionated recommendation). Opinion + build plan for the feature under discussion, NOT a whole-product audit |
 
 ---
 
@@ -63,6 +64,7 @@ The Claude Code custom command. No gstack source — written from scratch to orc
 | `.claude/commands/fullrun.md` | `CUSTOM` | Extends autofeature with Railway + Netlify MCP deploy verification. Adds platform detection (Step 2), deploy polling + E2E smoke against real preview URLs (Step 10.5), and PR body preview URL injection. Does not modify autofeature.md. |
 | `.claude/commands/seo.md` | `CUSTOM` | SEO audit + fix command. Audit mode: scans codebase + live site via WebFetch + Netlify MCP, scores against React/Vite/Netlify checklist, produces prioritised findings. Fix mode: implements improvements via autofeature pipeline using seo-architect specialist. Supports Trello card creation for audit findings. |
 | `.claude/commands/product-review.md` | `CUSTOM` | Standalone CEO/PM/flow-walker product review. Runs the product-review Workflow (map → 3 lenses → verify → synthesize) over the whole product (`audit`), a proposed feature (`feature:`), or jumps straight to a fix (`fix:`). Reports prioritized gaps & broken flows, then offers to spin top fixes into autofeature runs or Trello cards. |
+| `.claude/commands/feature-review.md` | `CUSTOM` | Standalone scoped review of the ONE feature under discussion. Captures the feature from conversation context, runs the lean feature-advice Workflow (scan → product advisor ∥ build advisor → synthesize), and returns an opinion + ordered build plan ending in a ready-to-run /autofeature prompt. Advice only — never branches or ships. |
 
 ---
 
@@ -165,6 +167,7 @@ Additions not in any gstack source:
 |----------|------|---------|
 | Railway + Netlify deploy verification | `adapted/feature-deploy-verify.md` + `.claude/commands/fullrun.md` | Post-ship preview deploy polling, Railway log health check, E2E smoke against real Netlify preview URLs, PR body enrichment with preview links |
 | CEO/PM/flow-walker product review (pre-build) | `adapted/feature-product-review.md` + `agents/product-strategist.md` + `.claude/commands/product-review.md` | Multi-agent **Workflow** that maps the product, fans out three product lenses, adversarially verifies broken-flow/gap claims against the code, and synthesizes a prioritized report — finds product gaps before building. Runs pre-build in /autofeature (Step 4.5) and standalone via /autofeature:product-review |
+| Scoped single-feature review (opinion + build advice) | `adapted/feature-advice.md` + `.claude/commands/feature-review.md` | Lean **Workflow** (scan → product advisor ∥ build advisor → synthesize) that reviews only the feature under discussion and returns an opinionated recommendation + build plan. Standalone via /autofeature:feature-review — the "should we / how?" step before /autofeature builds it |
 | Checkpoint/resume capability | `.claude/commands/autofeature.md` | Resume interrupted feature builds |
 | React Native specific design checks | `adapted/feature-design-check.md` | RN has different design concerns than web |
 | Swift/SwiftUI design checks | `adapted/feature-design-check.md` | iOS-specific accessibility + layout patterns |

@@ -35,7 +35,8 @@ fix). A founder/CEO lens, a PM lens, and a flow-walker lens look at the product,
 pass checks every high-severity claim against the actual code so you get **real** gaps, not guesses.
 
 This is **product** review, not engineering review. For correctness/security/tests use the pre-ship
-review inside `/autofeature`.
+review inside `/autofeature`. To review just **one feature** you're considering (an opinion + how to
+build it) rather than the whole product, use `/autofeature:feature-review`.
 
 ## $AUTOFEATURE_HOME
 
