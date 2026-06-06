@@ -13,6 +13,10 @@ Specialist subagent prompts spawned by the autofeature orchestrator. Each file i
 | [`mongo-data-modeler`](mongo-data-modeler.md) | MongoDB schema + queries + indexes | New collection, schema change, index proposal, migration, or query plan concern |
 | [`api-contract-broker`](api-contract-broker.md) | Cross-repo coordination | Backend + frontend(s) touched in same run |
 | [`product-strategist`](product-strategist.md) | Product review (CEO / PM / flow-walker) | Pre-build product review (Step 4.5) and standalone `/autofeature:product-review` |
+| [`market-analyst`](market-analyst.md) | Market demand + sizing (TAM/SAM/SOM) | Standalone `/autofeature:market-review` |
+| [`market-gap-analyst`](market-gap-analyst.md) | Competitive landscape + white space | Standalone `/autofeature:market-review` |
+| [`vc-analyst`](vc-analyst.md) | Fundability (venture-scale, comps, verdict) | Standalone `/autofeature:market-review` |
+| [`bear-case-analyst`](bear-case-analyst.md) | Adversarial skeptic (why it fails) | Standalone `/autofeature:market-review` |
 | [`test-runner`](test-runner.md) | Test execution + summary | Verify gate (Step 6) — keeps test logs out of orchestrator context |
 
 ## Invocation pattern
@@ -33,12 +37,21 @@ Why this pattern:
 - Edit a file → next run picks up the change, no reinstall
 - The fleet works on any machine that has this repo cloned
 
-**Exception — `product-strategist`:** this one is driven by the **Workflow** tool, not the
-`Agent`-fan-out pattern above. The orchestrator doesn't read `product-strategist.md` and pass it
-inline; instead `adapted/feature-product-review.md` carries a Workflow script whose `agent()` calls
-embed the three lens prompts. `product-strategist.md` is the **editable spec** (rubric, what each
-lens owns, severity, output contract) — when you change it, mirror the change into that script's
-inline prompts (workflows run in a sandbox and can't read the file at runtime).
+**Exception — the review/analysis agents** (`product-strategist`, and the market-review quartet
+`market-analyst` / `market-gap-analyst` / `vc-analyst` / `bear-case-analyst`): these are driven by
+the **Workflow** tool, not the `Agent`-fan-out pattern above. The orchestrator doesn't read the
+agent file and pass it inline; instead the matching `adapted/*.md` methodology carries a Workflow
+script whose `agent()` calls embed the lens/analyst prompts. The agent files are the **editable
+specs** (rubric, what each role owns, output contract) — when you change one, mirror the change into
+that script's inline prompts (workflows run in a sandbox and can't read the file at runtime).
+
+| Agent | Editable spec | Operational prompts run in |
+|-------|---------------|----------------------------|
+| `product-strategist` | `agents/product-strategist.md` | `adapted/feature-product-review.md` |
+| `market-analyst` / `market-gap-analyst` / `vc-analyst` / `bear-case-analyst` | the four `agents/*.md` | `adapted/market-review.md` |
+
+These review agents communicate via the **Workflow's structured return**, not the Feature Brief —
+they don't append brief sections.
 
 ## Calling multiple in parallel
 
