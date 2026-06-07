@@ -166,7 +166,7 @@ ${NOTES ? `Stated stage/traction/constraints: ${NOTES}` : ''}
 Repo: ${REPO} — if it's a real project, read the README / landing copy to ground what the product actually is, who it's for, and the problem it solves. If it's just an idea, work from the description.
 
 Return: product, oneLiner, problem, icp (ideal customer), businessModelGuess, stage (idea|prototype|mvp|launched|revenue), tractionNotes (anything the user said about users/revenue/signups).`,
-  { schema: VENTURE_BRIEF, phase: 'Frame' }
+  { schema: VENTURE_BRIEF, phase: 'Frame', model: 'sonnet' }   // tiers: orchestrator/model-tiers.md
 )
 const briefJson = JSON.stringify(brief)
 log(`Framed: ${brief.oneLiner || brief.product || IDEA}`)
@@ -179,21 +179,21 @@ const [market, gap, vc] = await parallel([
 ${webLine}
 Venture brief: ${briefJson}
 Assess: is the problem real/acute and who has it (ICP); painkiller vs vitamin; how it's solved today; demand signals; market size TAM/SAM/SOM built BOTTOM-UP (target customers × realistic ACV) and reconciled top-down — show the math and the year; tailwinds / why-now. Lead with bottom-up sizing. Return the structured contract with sources[] and a confidence level.`,
-    { label: 'research:market', phase: 'Research', schema: MARKET }
+    { label: 'research:market', phase: 'Research', schema: MARKET, model: 'sonnet' }
   ),
   () => agent(
     `[MARKET-GAP ANALYST] Map competition and find the defensible gap.
 ${webLine}
 Venture brief: ${briefJson}
 Assess: direct competitors, substitutes (incl. status quo / DIY), and adjacent players that could enter — each with positioning, pricing, traction/funding, strength, weakness, url; the white space (unowned positions / underserved segments); the wedge (concrete reason a first customer switches); the moat (what compounds, or "copyable") and copyability by a funded incumbent; why-now. There is ALWAYS a status quo — if you find "no competitors," find the substitute. Return the structured contract with sources[] and confidence.`,
-    { label: 'research:gap', phase: 'Research', schema: GAP }
+    { label: 'research:gap', phase: 'Research', schema: GAP, model: 'sonnet' }
   ),
   () => agent(
     `[VC ANALYST] Judge fundability like an early-stage partner.
 ${webLine}
 Venture brief: ${briefJson}
 First answer HONESTLY whether this is venture-scale or a good non-VC business. Then: business model + unit-economics sketch; the likely stage and its traction bar vs where this is; comparable RECENT raises (company, stage, amount, valuation, investors, year, url) — sourced; the 3–5 hardest partner objections; and a verdict { fundable, stage, checkRange, valuationBallpark, milestones, altFunding }. Do not fabricate funding numbers — if unsourced, say so and lower confidence. Return the structured contract.`,
-    { label: 'research:vc', phase: 'Research', schema: VC }
+    { label: 'research:vc', phase: 'Research', schema: VC, model: 'sonnet' }
   ),
 ])
 
@@ -213,7 +213,7 @@ Gap findings: ${JSON.stringify(gap)}
 VC findings: ${JSON.stringify(vc)}
 
 Build the strongest case to PASS. Flag inflated/unsourced numbers (especially top-down TAMs), white space that's actually a graveyard, illusory moats, cherry-picked or stale comps, demand signals that are noise. List graveyards (who tried, what happened, why, url). Name the 1–3 kill-shots. Write an 18-month pre-mortem. If after a genuine attempt you can't build a strong bear case, SAY SO — that's a bullish signal. Return the structured contract.`,
-  { schema: BEAR, phase: 'Bear case' }
+  { schema: BEAR, phase: 'Bear case', model: 'opus' }   // adversarial quality gate — orchestrator/model-tiers.md
 )
 
 // ---------- Phase 3.5: Verify citations (re-fetch each cited URL; web only) ----------
@@ -243,7 +243,7 @@ if (WEB) {
 URL: ${c.url}
 Cited for: "${c.what}"
 supported = "confirmed" only if the page loads AND states the figure/fact; "unconfirmed" if it loads but the number is absent or different; "dead" if it 404s or doesn't resolve. foundFigure = the actual number on the page (or ''). stale = true if the supporting figure is clearly >18 months old.`,
-      { label: `verify:${c.kind}`, phase: 'Verify', schema: CLAIM_VERDICT }
+      { label: `verify:${c.kind}`, phase: 'Verify', schema: CLAIM_VERDICT, model: 'haiku' }
     ).then(v => ({ ...c, ...v }))
   ))).filter(Boolean)
   for (const v of verified) {
@@ -284,7 +284,7 @@ Produce:
 - confidence: overall + what would raise it.
 
 Be honest above all. If the answer is "useful but NOT venture-fundable," say exactly that and point to the right funding path.`,
-  { schema: MEMO, phase: 'Synthesize' }
+  { schema: MEMO, phase: 'Synthesize', model: 'opus' }   // managing-partner synthesis — orchestrator/model-tiers.md
 )
 
 return {

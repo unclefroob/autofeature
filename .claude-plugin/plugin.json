@@ -1,7 +1,7 @@
 {
   "name": "autofeature",
-  "version": "1.7.0",
-  "description": "Build an entire feature end-to-end from a single prompt. Pipeline: interrogate → scope → product-review → plan → branch → implement (parallel specialists) → test → review → ship. Review lenses unified under /review [product|feature|market|scope]: /product-review (CEO/PM/flow-walker whole-product gaps & flows), /feature-review (focused opinion + build advice for one feature), /market-review (market demand, competitive gap & VC fundability with cited, re-verified research), /scope. Also /fullrun (deploy verification) and /seo (SEO audit + fix).",
+  "version": "1.9.0",
+  "description": "Build an entire feature end-to-end from a single prompt. Pipeline: interrogate → scope → product-review → plan → branch → implement (parallel specialists) → test → review → ship → test-manifest. Review lenses unified under /review [product|feature|market|scope]: /product-review (CEO/PM/flow-walker whole-product gaps & flows), /feature-review (focused opinion + build advice for one feature), /market-review (market demand, competitive gap & VC fundability with cited, re-verified research), /scope. Also /test (acceptance-test the live app — web/iOS/Android — by driving it like a user, building its own test plan from what was built), /fullrun (deploy verification) and /seo (SEO audit + fix). Model-tiered for cost — the fan-out runs on Sonnet/Haiku, Opus only for the few highest-judgment steps (tune in orchestrator/model-tiers.md).",
   "author": {
     "name": "unclefroob",
     "url": "https://github.com/unclefroob"

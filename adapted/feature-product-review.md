@@ -152,7 +152,7 @@ Produce a Product Map:
 ${MODE === 'feature' ? '- proposedFeature: one paragraph on what the brief proposes.' : ''}
 
 Ground everything in real files — do not invent surfaces that don't exist in the repo. Be concise.`,
-  { schema: PRODUCT_MAP, phase: 'Map' }
+  { schema: PRODUCT_MAP, phase: 'Map', model: 'haiku' }   // tiers: orchestrator/model-tiers.md
 )
 log(`Mapped ${map.surfaces?.length || 0} surfaces, ${map.journeys?.length || 0} journeys`)
 
@@ -180,7 +180,7 @@ ${mapJson}
 
 Repo: ${REPO}. Open the real files for anything you call out — a finding not grounded in a file/route/screen is a guess; drop it or mark confidence:low.
 Severity: critical = core journey broken / half-capability hit immediately; high = clearly-expected capability missing or secondary flow broken; medium = real rough edge (missing empty/error state, no confirmation/off-switch); low = polish/opportunity. Don't inflate. Return an EMPTY findings list if your lens found nothing real.`,
-    { label: `review:${l.key}`, phase: 'Review', schema: FINDINGS }
+    { label: `review:${l.key}`, phase: 'Review', schema: FINDINGS, model: 'sonnet' }
   )
 ))).filter(Boolean)
 
@@ -221,7 +221,7 @@ Where: ${f.where}
 Evidence given: ${f.evidence}
 
 Repo: ${REPO}. Open the relevant files/routes. Refute (refuted:true) if the capability/route/screen/handler ACTUALLY EXISTS, the flow IS closed, or the round-trip IS complete and the reviewer simply missed it. Confirm (refuted:false) only if the gap/broken step is real and you can point to the absence. Be specific in evidence.`,
-    { label: `verify:${(f.title || '').slice(0, 36)}`, phase: 'Verify', schema: VERDICT }
+    { label: `verify:${(f.title || '').slice(0, 36)}`, phase: 'Verify', schema: VERDICT, model: 'sonnet' }
   ).then(v => ({ key: keyOf(f), verdict: v }))
 ))).filter(Boolean)
 const verdictByKey = new Map(verdicts.map(v => [v.key, v.verdict]))
@@ -261,7 +261,7 @@ Produce:
 - recommendedNextFeatures: 2–6 concrete, buildable features that close the most valuable gaps — each phrased as it could be handed to /autofeature, with a one-line "why".
 
 Be honest about severity. If the product/feature is in good shape, say so plainly.`,
-  { schema: SYNTHESIS, phase: 'Synthesize' }
+  { schema: SYNTHESIS, phase: 'Synthesize', model: 'sonnet' }
 )
 
 return {

@@ -20,6 +20,8 @@ The autofeature pipeline invokes other installed skills at specific phases. This
 
 Note: `Plan` and `Explore` are built-in subagent_types invoked via the `Agent` tool. `frontend-design`, `security-review`, `simplify` are user-invocable skills invoked via the `Skill` tool.
 
+**Model tier:** every `Agent({...})` below carries a `model:` per `model-tiers.md` (active profile BALANCED — Explore/Plan on Sonnet, mechanical scans on Haiku). Skills and the orchestrator loop run on the session model, so run the command on Sonnet for the cheapest pass.
+
 ## Step 2: Explore agent for context gathering
 
 Replaces manual grep/glob in the orchestrator's main context.
@@ -28,6 +30,7 @@ Replaces manual grep/glob in the orchestrator's main context.
 Agent({
   description: "Autofeature context scan",
   subagent_type: "Explore",
+  model: "sonnet",   // build context — orchestrator/model-tiers.md
   prompt: "Gather context for autofeature run on: [feature description].
     Find:
     - Relevant existing modules / files that touch this domain
@@ -47,6 +50,7 @@ Replaces the orchestrator drafting the plan inline.
 Agent({
   description: "Autofeature technical plan",
   subagent_type: "Plan",
+  model: "sonnet",   // cross-repo → "opus" (orchestrator/model-tiers.md)
   prompt: "Read the Feature Brief at .autofeature/designs/[slug]-[date].md.
     Read these methodology files:
     - $AUTOFEATURE_HOME/adapted/feature-plan.md

@@ -38,6 +38,18 @@ allowed-tools:
 
 ---
 
+## Model Efficiency (always active)
+
+Spawned agents and Workflow phases inherit the session model unless given an explicit `model:` — so on
+Opus the whole fan-out is Opus, the main cost driver. **Every spawn in this pipeline carries a
+`model:` per `$AUTOFEATURE_HOME/orchestrator/model-tiers.md`** (active profile: BALANCED — Sonnet
+workhorse, Haiku for mechanical test-runner/maps, Opus only for the few highest-judgment steps).
+Skills and this orchestrator loop follow the session model, so for the cheapest runs invoke
+`/autofeature` on Sonnet; the deep-reasoning steps still self-elevate to Opus via their pins. A run may
+pass `model: economy|balanced|quality` (or `model: opus|sonnet|haiku`) to shift the whole fleet.
+
+---
+
 ## $AUTOFEATURE_HOME
 
 All methodology + agent + orchestrator files live under one root. They **ship with the plugin**, so
@@ -65,7 +77,7 @@ If no candidate resolves (none contains `adapted/`), abort with: `AutoFeature me
 
 ```
 resume? → [trello?] → interrogate → scope-gate → product-review (pre-build) → plan → branch → cross-repo-coord →
-  implement (parallel specialists) → verify (test-runner) → review (parallel + skills) → ship
+  implement (parallel specialists) → verify (test-runner) → review (parallel + skills) → ship → test-manifest
 ```
 
 ---
@@ -137,6 +149,8 @@ Feature request = everything after `/autofeature` in the user's message.
 
 Only interrupt for a **User Challenge**: when implementation would need to fundamentally contradict the stated feature request.
 
+**Model tier:** scan the request for a `model:` override (`economy|balanced|quality` or `opus|sonnet|haiku`); absent → BALANCED. Apply it per `$AUTOFEATURE_HOME/orchestrator/model-tiers.md` to every agent spawned below.
+
 **Create pipeline tasks via TaskCreate:**
 
 ```
@@ -176,6 +190,7 @@ Don't grep + glob in main context. Spawn Explore:
 Agent({
   description: "Autofeature context scan",
   subagent_type: "Explore",
+  model: "sonnet",            // build-context — orchestrator/model-tiers.md
   prompt: "Gather context for autofeature run.
 
   Feature request: [verbatim user request]
@@ -312,6 +327,7 @@ in-scope gaps.
 Agent({
   description: "Autofeature technical plan",
   subagent_type: "Plan",
+  model: "sonnet",            // cross-repo → "opus" (orchestrator/model-tiers.md)
   prompt: "Read the Feature Brief at .autofeature/designs/[slug]-[date].md.
   Also read $AUTOFEATURE_HOME/adapted/feature-plan.md for methodology.
 
@@ -340,7 +356,7 @@ After the Plan subagent returns, fan out the architects in parallel based on STA
 For each applicable architect, compose a spawn prompt:
 1. Read `$AUTOFEATURE_HOME/agents/<agent-name>.md`
 2. Append: feature brief path, mode=`design`, repo path
-3. Spawn via `Agent` (subagent_type=`general-purpose`)
+3. Spawn via `Agent` (subagent_type=`general-purpose`, **`model: "sonnet"`** per `orchestrator/model-tiers.md`)
 
 **Send all applicable Agent calls in a SINGLE message for true parallelism.**
 
@@ -365,6 +381,7 @@ Read $AUTOFEATURE_HOME/agents/api-contract-broker.md
 Agent({
   description: "API contract reconciliation",
   subagent_type: "general-purpose",
+  model: "sonnet",            // orchestrator/model-tiers.md
   prompt: "[api-contract-broker.md content]
 
   Job: Reconcile contracts across the architects' plans in .autofeature/designs/[slug]-[date].md.
@@ -431,10 +448,10 @@ Skip for: data-display tweaks, admin-only screens, single-component edits.
 For each architect that produced a design, spawn the same agent in `implement` mode. Send all in a single message for parallelism:
 
 ```
-[single message]
-Agent({ description: "Backend impl", prompt: "[express-mongo-architect.md] + mode=implement + brief path + branch" })
-Agent({ description: "Web impl",     prompt: "[react-architect.md] + mode=implement + brief path + branch" })
-Agent({ description: "Mobile impl",  prompt: "[react-native-architect.md] + mode=implement + brief path + branch" })
+[single message] — all architects at model: "sonnet" (orchestrator/model-tiers.md)
+Agent({ description: "Backend impl", model: "sonnet", prompt: "[express-mongo-architect.md] + mode=implement + brief path + branch" })
+Agent({ description: "Web impl",     model: "sonnet", prompt: "[react-architect.md] + mode=implement + brief path + branch" })
+Agent({ description: "Mobile impl",  model: "sonnet", prompt: "[react-native-architect.md] + mode=implement + brief path + branch" })
 ```
 
 Each implementer follows TDD per `feature-plan.md` (RED → verify RED → GREEN → verify GREEN → REFACTOR).
@@ -499,6 +516,7 @@ Read $AUTOFEATURE_HOME/agents/test-runner.md
 Agent({
   description: "Run unit/integration suite",
   subagent_type: "general-purpose",
+  model: "haiku",             // mechanical — orchestrator/model-tiers.md
   prompt: "[test-runner.md content]
 
   Job: Run the unit and integration test suite for repo at [pwd].
@@ -515,6 +533,7 @@ The test-runner returns a <2KB summary. The orchestrator NEVER ingests full test
 Agent({
   description: "Run Playwright suite",
   subagent_type: "general-purpose",
+  model: "haiku",             // mechanical — orchestrator/model-tiers.md
   prompt: "[test-runner.md content]
 
   Job: Run the Playwright E2E suite for repo at [pwd].
@@ -551,7 +570,7 @@ Read `$AUTOFEATURE_HOME/adapted/feature-review.md`.
 
 ### 9a. Parallel review fan-out
 
-Spawn these as simultaneous agents in a SINGLE message:
+Spawn these as simultaneous agents in a SINGLE message (each at **`model: "sonnet"`** per `orchestrator/model-tiers.md`):
 
 1. **Critical pass** — security, race conditions, SQL/NoSQL injection, unhandled enums, mass-assignment
 2. **Informational pass** — type safety, async issues, completeness gaps
@@ -659,6 +678,36 @@ Output the PR URL(s).
 
 ---
 
+## Step 10.5: Emit Test Manifest
+
+Document exactly what this run built, so it can be acceptance-tested later (by `/autofeature:test`, or
+by hand). This is part of the ship phase — **no separate pipeline Task** (folded under Task 10, so it
+does not collide with `fullrun.md`'s added Task 11 / Deploy).
+
+**Skip only for `micro` tier** — unless the micro change is user-facing, in which case still emit a
+short manifest.
+
+Read `$AUTOFEATURE_HOME/adapted/feature-test-manifest.md` and write
+`.autofeature/tests/[slug]-[date].md` from material **already gathered in this run** — do not start a
+fresh investigation:
+
+- Feature name, slug, scope tier, platforms (STACK), branch, PR URL → from the Feature Brief + Step 10.
+- **Surfaces built** (web routes / API endpoints / mobile screens) → from
+  `git diff --stat origin/[base]...HEAD` and the architect `## *Plan*` sections of the brief.
+- **Acceptance flows (AF-N)** → expand the brief's golden path + the plan's **shadow paths / error
+  map** (nil / empty / invalid / unauthorized) into full flows with preconditions + expected results.
+  The PR "Manual test steps" are the seed — make each a complete, observable flow.
+- **Setup** + **Out of scope** → from the brief's auth/seed/feature-flag needs and anything the plan
+  deferred to fast-follow / cut.
+
+For cross-repo runs, emit one manifest per repo touched (or one manifest with a Surfaces block per
+repo), matching the split in `.autofeature/coordination.md`.
+
+Then link it from the PR body — add to the "Manual test steps" section:
+> Test Manifest: `.autofeature/tests/[slug]-[date].md` — run `/autofeature:test` to drive these flows.
+
+---
+
 ## Step 11: Cleanup Checkpoint
 
 ```bash
@@ -695,7 +744,8 @@ Review: N auto-fixed, M approved, K skipped
 Security review: [N issues / "n/a"]
 Simplify: [N improvements / "n/a"]
 
-Feature Brief: .autofeature/designs/[slug]-[date].md
+Feature Brief:  .autofeature/designs/[slug]-[date].md
+Test Manifest:  .autofeature/tests/[slug]-[date].md   (run /autofeature:test to drive it — skipped for micro)
 ```
 
 ---
@@ -732,6 +782,7 @@ This orchestrator reads these at runtime. Edit them to change behavior.
 | `feature-design-check.md` | UI quality check |
 | `feature-devex-check.md` | Developer experience check |
 | `feature-ship.md` | Commit, push, PR |
+| `feature-test-manifest.md` | Test Manifest format — emitted at Step 10.5 to document what was built (consumed by `/autofeature:test`) |
 
 ### Agents (`$AUTOFEATURE_HOME/agents/`)
 | File | Purpose |
@@ -751,6 +802,7 @@ This orchestrator reads these at runtime. Edit them to change behavior.
 | `cross-repo-detect.md` | Find sibling `*-api`/`*-mobile`/etc repos |
 | `skill-wiring.md` | When to invoke Plan/Explore/security-review/simplify/frontend-design |
 | `trello-scope.md` | Fetch Trello card via MCP, generate technical scope, post comment |
+| `model-tiers.md` | Per-task model tier (cost/quality) — what `model:` each spawned agent gets |
 
 ### Source (`$AUTOFEATURE_HOME/source/`)
 gstack reference baseline. Do not edit — diff against gstack updates instead.

@@ -89,6 +89,7 @@ Spawn as a subagent to keep findings out of main context:
 Agent({
   description: "SEO codebase scan",
   subagent_type: "general-purpose",
+  model: "sonnet",   // audit analysis — orchestrator/model-tiers.md
   prompt: "Read and execute $AUTOFEATURE_HOME/adapted/feature-seo-audit.md — Steps 1 only (codebase scan, no live fetch).
   Repo: [pwd]
   Return the full structured findings list with severity tags. Under 600 words."
@@ -212,6 +213,7 @@ Spawn `seo-architect` as the primary implementer. If `react-architect` is also n
 Agent({
   description: "SEO implementation",
   subagent_type: "general-purpose",
+  model: "sonnet",   // architect impl — orchestrator/model-tiers.md
   prompt: "[seo-architect.md content]
 
   Mode: implement
@@ -226,6 +228,7 @@ Agent({
 Agent({  ← only if component-level changes needed
   description: "React component SEO wiring",
   subagent_type: "general-purpose",
+  model: "sonnet",   // architect impl — orchestrator/model-tiers.md
   prompt: "[react-architect.md content]
 
   Mode: implement

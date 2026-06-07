@@ -72,6 +72,7 @@ Spawn a single **Explore** agent to gather just enough signal — do not grep/gl
 Agent({
   description: "Product-review context scan",
   subagent_type: "Explore",
+  model: "haiku",   // surface map — orchestrator/model-tiers.md
   prompt: "Quick scan for a product review (no implementation).
   Repo: [pwd]
   Return only:

@@ -119,6 +119,7 @@ Read $AUTOFEATURE_HOME/agents/test-runner.md
 Agent({
   description: "E2E smoke test against Netlify preview",
   subagent_type: "general-purpose",
+  model: "haiku",   // runs test-runner (mechanical) — orchestrator/model-tiers.md
   prompt: "[test-runner.md content]
 
   Job: Run the Playwright golden-path test against the Netlify preview URL.

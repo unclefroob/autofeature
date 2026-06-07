@@ -2,7 +2,7 @@
 
 Build a complete feature end-to-end from a single prompt.
 
-**Pipeline:** interrogate → scope → product-review → plan → branch → implement → test → review → ship
+**Pipeline:** interrogate → scope → product-review → plan → branch → implement → test → review → ship → test-manifest
 
 **Supports:** Node.js, React, React Native, Swift, Kotlin
 
@@ -87,6 +87,36 @@ Reviews the diff for security issues, race conditions, type safety, and complete
 ### Phase 7: Ship
 Merges main, runs final tests, creates bisectable commits, pushes, and opens a PR.
 
+### Phase 7.5: Test Manifest
+Documents *exactly what was built* as a structured, re-runnable acceptance spec at
+`.autofeature/tests/[slug]-[date].md` — surfaces built (routes/endpoints/screens), acceptance flows
+(golden + error paths), setup, and what's out of scope. This is the precise hand-off from building to
+testing, and the plan spine for `/autofeature:test`. Skipped for `micro` changes.
+
+---
+
+## Testing a running build — `/autofeature:test`
+
+Acceptance-test the **live app** by driving it like a user — the complement to the headless unit
+suite. It **builds its own test plan by reviewing what was built** (the Test Manifest above when
+present, plus the code and the running surface — you don't hand it a plan), logs in with a URL +
+credentials you give, walks the flows, and reports per-flow **PASS / FAIL / BLOCKED** with screenshots
+and console/network errors.
+
+- **Web** → drives a real browser (Claude-in-Chrome MCP)
+- **iOS** → boots a simulator and drives it (ios-simulator skill + computer-use)
+- **Android** → boots an emulator and drives it (adb + computer-use)
+
+```
+/autofeature:test url: https://app.com creds: user@x.com/secret   # whole product, web
+/autofeature:test branch                                          # only what changed on this branch
+/autofeature:test ios                                             # this repo's app in the iOS simulator
+/autofeature:test manifest: .autofeature/tests/<slug>-<date>.md   # exactly the documented flows
+```
+
+Credentials are never logged, written to the report, or committed. Failures can be handed straight to
+`/autofeature` to fix — this command only reports, it never edits app code.
+
 ---
 
 ## File Structure
@@ -124,6 +154,23 @@ The skill reads the adapted files at runtime, so changes to them take effect imm
 **To change what phases checkpoint:** find the checkpoint gates in `autofeature.md`
 
 See `MANIFEST.md` for a detailed breakdown of what was kept vs. removed from gstack.
+
+---
+
+## Model efficiency
+
+The pipeline fans out a lot — Explore, Plan, 1–3 architects, the test-runner, 3–5 parallel reviewers,
+and the review/market Workflows (4–8 agents each). Every spawn is pinned to the cheapest capable model
+tier so the whole fan-out doesn't inherit your (possibly Opus) session model:
+
+- **Haiku** — mechanical work: test-runner, citation re-fetch, surface maps.
+- **Sonnet** — the workhorse: context, planning, all architects (design + implement), code review, analysts.
+- **Opus** — only the few highest-judgment steps: the market-review memo, the adversarial bear-case, cross-repo planning.
+
+This is the **BALANCED** profile. Retune it (or switch to economy / quality-preserving, or pass a
+per-run `model:` override) in `orchestrator/model-tiers.md`. Skills and the orchestrator's own loop
+follow your session model — **run the command on Sonnet for the cheapest pass**; the deep-reasoning
+steps still self-elevate to Opus via their pins.
 
 ---
 

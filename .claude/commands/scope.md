@@ -46,6 +46,7 @@ grep/glob in main context:
 Agent({
   description: "Scope-gate context scan",
   subagent_type: "Explore",
+  model: "haiku",   // lightweight classification — orchestrator/model-tiers.md
   prompt: "Quick scan for a scope classification (no implementation).
 
   Feature request: [FEATURE_REQUEST verbatim]

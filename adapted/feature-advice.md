@@ -144,7 +144,7 @@ Return:
 - notes: anything load-bearing the advisors should know (auth pattern, data-fetching layer, conventions).
 
 Be concise and specific. Open the real files for the touchpoints you list.`,
-  { schema: SCAN, phase: 'Scan' }
+  { schema: SCAN, phase: 'Scan', model: 'sonnet' }   // tiers: orchestrator/model-tiers.md
 )
 log(`Scanned: ${scan.stack || '?'} — ${scan.touchpoints?.length || 0} touchpoints, ${scan.priorArt?.length || 0} prior-art`)
 
@@ -160,7 +160,7 @@ ${NOTES ? `Constraints/goals: ${NOTES}` : ''}
 Relevant code context: ${scanJson}
 
 Give an opinion: Is this worth building? Who is it for and what's the core job? What is the SHARPEST / smallest-valuable version (the MVP)? What should be deferred or cut? What does THIS feature specifically need to feel complete (the obvious adjacent piece a user expects)? Flag any product risk. Be opinionated and concrete. Set lens="product".`,
-    { label: 'advise:product', phase: 'Advise', schema: ADVICE }
+    { label: 'advise:product', phase: 'Advise', schema: ADVICE, model: 'sonnet' }
   ),
   () => agent(
     `You are a BUILD advisor (senior engineer for this stack). Scope: THIS feature ONLY.
@@ -170,7 +170,7 @@ ${NOTES ? `Constraints/goals: ${NOTES}` : ''}
 Relevant code context: ${scanJson}
 
 Advise HOW to build it in THIS codebase: the recommended approach/architecture, where it fits, the data-model / API / UI shape as relevant (sketch the contract), key technical decisions with trade-offs, the riskiest parts and edge cases, a test strategy, and a rough build sequence. REUSE the prior art and conventions from the scan — don't reinvent. Be specific to this repo's stack. Set lens="build".`,
-    { label: 'advise:build', phase: 'Advise', schema: ADVICE }
+    { label: 'advise:build', phase: 'Advise', schema: ADVICE, model: 'sonnet' }
   ),
 ])
 
@@ -195,7 +195,7 @@ Produce:
 - suggestedAutofeaturePrompt: a single ready-to-run feature request for "/autofeature [mode:] …" that captures the MVP scope.
 
 Be decisive. If it's a bad idea or premature, say so and explain the better move.`,
-  { schema: RECO, phase: 'Synthesize' }
+  { schema: RECO, phase: 'Synthesize', model: 'sonnet' }
 )
 
 return { feature: FEATURE, stack: scan.stack || '', ...reco }

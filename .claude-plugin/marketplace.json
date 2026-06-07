@@ -8,8 +8,8 @@
     {
       "name": "autofeature",
       "source": "./",
-      "description": "Build an entire feature end-to-end from a single prompt. Pipeline: interrogate → scope → product-review → plan → branch → implement (parallel specialists) → test → review → ship. Includes /fullrun, /seo, and the review lenses unified under /review [product|feature|market|scope] (also available standalone: /product-review, /feature-review, /market-review, /scope).",
-      "version": "1.7.0"
+      "description": "Build an entire feature end-to-end from a single prompt. Pipeline: interrogate → scope → product-review → plan → branch → implement (parallel specialists) → test → review → ship → test-manifest. Includes /test (acceptance-test the live app — web/iOS/Android — building its own plan from what was built), /fullrun, /seo, and the review lenses unified under /review [product|feature|market|scope] (also available standalone: /product-review, /feature-review, /market-review, /scope). Model-tiered for cost — the fan-out runs on Sonnet/Haiku, Opus only where it matters (orchestrator/model-tiers.md).",
+      "version": "1.9.0"
     }
   ]
 }
