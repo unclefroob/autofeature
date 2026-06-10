@@ -1,6 +1,6 @@
 ---
 status: CUSTOM
-description: Model-tier (cost/quality) policy for the autofeature agent fleet. Every spawned Agent and every Workflow agent() phase inherits the session model unless given an explicit model:, so running on Opus puts the whole fan-out on Opus — the main cost driver. This file pins each task to the cheapest tier that does it well (active profile: BALANCED) and is the single editable knob; the spawn sites carry the resulting model: value. Read by autofeature.md and the review/market/seo/test commands when fanning out.
+description: Model-tier (cost/quality) policy for the autofeature agent fleet. Every spawned Agent and every Workflow agent() phase inherits the session model unless given an explicit model:, so running on Opus puts the whole fan-out on Opus — the main cost driver. This file pins each task to the cheapest tier that does it well (active profile: BALANCED) and is the single editable knob; the spawn sites carry the resulting model: value. Read by autofeature.md and the review/market/seo/test/copy commands when fanning out.
 ---
 
 # Model Tiers — cost/quality policy for the fleet
@@ -34,9 +34,9 @@ in each tier.
 
 | Tier | Tasks | Why |
 |------|-------|-----|
-| **haiku** | `test-runner` (run + parse + ≤2KB summary); market-review **citation re-fetch + classify**; product-review & feature-test **surface maps**; deploy-verify **smoke-result parse**; scope-gate context Explore | Mechanical — run / fetch / parse / enumerate. No design judgment. |
-| **sonnet** | autofeature **build-context Explore**; **Plan** (single-layer / cross-stack); **all architects** design **and** implement (`express-mongo`, `react`, `react-native`, `swift`, `seo`); `mongo-data-modeler`; `api-contract-broker`; **code-review passes** (critical / info / testing / design / devex); feature-advice (scan + product/build advisors + synthesis); product-review **lenses + claim-verify + synthesis**; market/gap/vc **analysts + framing**; deploy-verify **E2E smoke run** | Workhorse — code comprehension, design, implementation, review, analysis. Sonnet 4.6 is a strong coder/reader. |
-| **opus** | market-review **managing-partner memo**; **bear-case** adversarial analyst; **Plan when scope = `cross-repo`** | Highest-judgment synthesis · adversarial quality gate · hardest multi-repo planning. The only places Opus earns its cost. |
+| **haiku** | `test-runner` (run + parse + ≤2KB summary); market-review **citation re-fetch + classify**; product-review & feature-test **surface maps**; copy-audit **surface map**; deploy-verify **smoke-result parse**; scope-gate context Explore | Mechanical — run / fetch / parse / enumerate. No design judgment. |
+| **sonnet** | autofeature **build-context Explore**; **Plan** (single-layer / cross-stack); **all architects** design **and** implement (`express-mongo`, `react`, `react-native`, `swift`, `seo`); `mongo-data-modeler`; `api-contract-broker`; **code-review passes** (critical / info / testing / design / devex); feature-advice (scan + product/build advisors + synthesis); product-review **lenses + claim-verify + synthesis**; market/gap/vc **analysts + framing**; copy-audit **audit passes**; deploy-verify **E2E smoke run** | Workhorse — code comprehension, design, implementation, review, analysis. Sonnet 4.6 is a strong coder/reader. |
+| **opus** | market-review **managing-partner memo**; **bear-case** adversarial analyst; **Plan when scope = `cross-repo`**; copy **rewrites** (fix/write modes) | Highest-judgment synthesis · adversarial quality gate · hardest multi-repo planning · writing voice. The only places Opus earns its cost. |
 
 > Borderline calls (worth knowing if you re-tune): **surface maps** sit on haiku — they only enumerate
 > routes/endpoints/screens — but they feed the reviews, so bumping them to sonnet is the first move if a
