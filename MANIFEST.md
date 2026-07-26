@@ -71,6 +71,7 @@ The Claude Code custom command. No gstack source — written from scratch to orc
 | `.claude/commands/market-review.md` | `CUSTOM` | Standalone market & fundability review. Captures the product/idea from context (reads the repo README to ground it), runs the market-review Workflow (frame → market ∥ gap ∥ VC → bear case → **citation-verify** → synthesize) with live cited web research, and produces an investment memo answering is-it-useful / market-gap / can-I-get-funding. Saves to `.autofeature/market-review-[date].md`. Advisory only. |
 | `.claude/commands/review.md` | `CUSTOM` | Unified entry for the review lenses — `/autofeature:review [product\|feature\|market\|scope] [args]` dispatches to the matching standalone command/methodology (no reimplementation). Single discoverable surface; the four standalones still work. |
 | `.claude/commands/test.md` | `CUSTOM` | Standalone **live acceptance tester** — drives the running app (web via Chrome MCP; iOS sim / Android emulator via computer-use) against a URL + credentials, deriving its own test plan by reviewing what was built (newest Test Manifest + code + live surface). Reports per-flow PASS/FAIL/BLOCKED; offers to hand failures to `/autofeature [skip-product-review] fix:`. Reads `adapted/feature-test.md` + `adapted/feature-test-manifest.md`. Distinct from `agents/test-runner.md` (headless unit/e2e suites). |
+| `.claude/commands/ritchies.md` | `CUSTOM` | Ritchies-platform wrapper over `autofeature.md`. Hard-wires the four repos (`ritchies-platform-api`/`-web`, `ritchies-mobile`, `ritchies-android`) instead of the generic cross-repo-detect; always scaffolds the API first + freezes the contract via `api-contract-broker`, then asks which clients (web/iOS/Android) to fan out. Loads `ritchies/conventions.md`, enforces each repo's deliberate conventions (no Retrofit/Koin on Android, no react-query on web, iOS-parity mobile, four-pillar RBAC, employee-number auth). Overrides base Steps 4/5b/6/7b/8 only; everything else runs per autofeature.md. |
 
 ---
 
@@ -83,6 +84,7 @@ Self-contained subagent prompts. Spawned via the `Agent` tool (subagent_type=`ge
 | `agents/express-mongo-architect.md` | `CUSTOM` | Backend specialist: Express routes/controllers/middleware, Mongoose models, validation, integration tests |
 | `agents/react-architect.md` | `CUSTOM` | Web frontend specialist: components, hooks, routing, forms, React Query, RTL tests |
 | `agents/react-native-architect.md` | `CUSTOM` | Mobile specialist: screens, navigation, Platform.OS, permissions, native modules, lists |
+| `agents/kotlin-compose-architect.md` | `CUSTOM` | Native Android (Kotlin + Jetpack Compose) specialist tuned for the Ritchies app's deliberate anti-framework, iOS-parity grain: OkHttp string-path `ApiClient` (no Retrofit), `remember { <Feature>Store(scope) }` state holders (no Hilt/Koin/repository), `when`-driven nav wired into `DashboardScreen` (no Navigation-Compose), co-located `@Serializable` DTO+domain+`toDomain()`. Cites the neutral `rcosteira79/android-skills` (compose/coroutines/flows/testing/gradle) for idiom depth; explicitly skips their architectural skills. Builds via `:app:assembleDebug` (SDK+JDK17+gradle-8.9). |
 | `agents/mongo-data-modeler.md` | `CUSTOM` | Schema design, index strategy, query plan review, migration plan |
 | `agents/api-contract-broker.md` | `CUSTOM` | Cross-repo contract reconciliation when backend + frontend(s) are touched in one run |
 | `agents/seo-architect.md` | `CUSTOM` | SEO specialist — implements prerendering (vite-plugin-prerender/vite-ssg), react-helmet-async per-route meta tags, sitemap, robots.txt, Netlify canonical redirects/_headers, JSON-LD structured data; flags OG image, copy, and dynamic route decisions to user |
@@ -93,6 +95,16 @@ Self-contained subagent prompts. Spawned via the `Agent` tool (subagent_type=`ge
 | `agents/bear-case-analyst.md` | `CUSTOM` | Market-review persona — adversarial skeptic. Builds the case to pass, stress-tests the other analysts' claims (inflated TAMs, graveyards, illusory moats, cherry-picked comps), names kill-shots, writes an 18-month pre-mortem. The quality gate against happy-path market analysis |
 | `agents/test-runner.md` | `CUSTOM` | Test execution proxy — keeps multi-MB test logs out of orchestrator context, returns <2KB summary |
 | `agents/README.md` | `CUSTOM` | Roster, invocation pattern, parallel fan-out usage |
+
+---
+
+## Ritchies Platform (`ritchies/`)
+
+Project-specific reference consumed by `.claude/commands/ritchies.md`.
+
+| File | Status | Description |
+|------|--------|-------------|
+| `ritchies/conventions.md` | `CUSTOM` | Per-repo conventions for the four Ritchies repos — shared invariants (employee-number JWT auth, four-pillar RBAC, `/api/<domain>` plain-JSON, capability-authority + 1-7 level), the exact new-feature file footprint in each repo, the Announcements reference feature, and the two cross-repo caveats to surface (brand-blue split `#002491` web vs `#0039A6` mobile; asymmetric test coverage). Fed to every architect the ritchies command spawns. |
 
 ---
 
