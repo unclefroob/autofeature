@@ -86,8 +86,14 @@ export const meta = {
   ],
 }
 
-const AWARD = args.award
-const ROWS  = args.rows || []
+// Defensive: some runs of this tool deliver `args` as the raw JSON text rather than a parsed
+// object — confirmed on a live probe (`typeof args === 'string'`, holding the exact literal it
+// was called with) even when the caller passed a real object, not a JSON-encoded string, exactly
+// the failure mode the tool's own docs warn about. Parsing here rather than trusting `typeof`
+// upstream is what kept a genuinely correct verification run from silently checking zero rows.
+const ARGS = typeof args === 'string' ? JSON.parse(args) : args
+const AWARD = ARGS.award
+const ROWS  = ARGS.rows || []
 
 // ---------- per-table field vocabulary, kept in lockstep with db/schema.sql ----------
 // A reader is only useful if it picks from the SAME vocabulary the database uses. Days are
