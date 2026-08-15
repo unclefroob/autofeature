@@ -4,6 +4,7 @@ description: |
   Map an Australian modern award into rosterio-compliance-service so it can be priced and roster-checked, with every rule citing a clause and mechanically checkable against the award's own words.
   Enumeration-first, deliberately: transcribe the award's clause list and per-clause sub-clause counts from the Commission's consolidated PDF, triage every clause against the closed rule vocabulary, stand up the eight closure axes to produce a FIXED work list, and only then author SQL against a list that can only shrink.
   Exists to kill the perpetual-gap loop. "Are there gaps?" becomes one command that returns a list, instead of a question an agent answers differently every time it is asked.
+  Closure proves coverage, not correctness — Step 7.5 runs /autofeature:award-verify to independently re-derive every predicate-bearing row from its clause text and adversarially check it against what shipped, closing the one gap closure can't: a rule that's reachable and cites the right clause but got the day, the time or the priority wrong.
   Invoke as: /autofeature:award-map <AWARD_CODE> [mode:checkpoint|automated] [resume]
 allowed-tools:
   - Bash
@@ -39,19 +40,23 @@ for _d in "$AUTOFEATURE_HOME" "${CLAUDE_PLUGIN_ROOT}" "$HOME/dev/autofeature"; d
 done
 ```
 
-**Read all three of these in full before Step 1, and treat them as
+**Read all four of these in full before Step 1, and treat them as
 authoritative:**
 
 - `$AUTOFEATURE_HOME/awards/service-conventions.md` — the service being extended
 - `$AUTOFEATURE_HOME/awards/gap-axes.md` — the eight axes and the definition of done
 - `$AUTOFEATURE_HOME/awards/rule-tables.md` — what the vocabulary can and cannot say
+- `$AUTOFEATURE_HOME/awards/verify-workflow.md` — semantic verification, run at Step 7.5
 
 ## Args
 
 - `<AWARD_CODE>` — required, e.g. `MA000003`. Refuse to proceed without one.
-- `mode:checkpoint` (default) — stop at the three checkpoints below.
-  `mode:automated` — run through, but the two **hard** checkpoints still stop.
-  They are the two places judgement is exercised and neither may be skipped.
+- `mode:checkpoint` (default) — stop at every checkpoint below.
+  `mode:automated` — run through, but the three **hard** checkpoints still stop:
+  the transcription (Step 2), the expressiveness triage (Step 4), and the
+  human sign-off on the closure + semantic-verification report (Step 8). They
+  are where judgement is exercised or where the mapping's whole claim to be
+  trustworthy is either earned or not, and none of the three may be skipped.
 - `resume` — pick up from the state file, see Resume.
 
 ## Iron Laws
@@ -76,7 +81,8 @@ authoritative:**
 ```
 0 preflight ─ 1 acquire ─ 2 transcribe [HARD CHECKPOINT] ─ 3 shape ─
 4 triage [HARD CHECKPOINT] ─ 5 stand up closure → WORK LIST ─
-6 author (burn down) ─ 7 scenario suite ─ 8 closure run + review pack ─ 9 ship
+6 author (burn down) ─ 7 scenario suite ─ 7.5 semantic verification ─
+8 closure run + review pack [HARD CHECKPOINT] ─ 9 ship
 ```
 
 The order matters and was arrived at the hard way. The closure axes cannot run
@@ -355,9 +361,12 @@ judgement from Step 4 gets spent.
 
 ## Step 7: The scenario suite
 
-The axes cannot catch a clause read, cited and transcribed correctly but wired to
-the wrong rule. Nothing mechanical can. This is what covers that, and it is
-bounded by the clause count rather than open-ended.
+The closure axes cannot catch a clause read, cited and transcribed correctly but
+wired to the wrong rule — Step 7.5 goes after most of that. What Step 7.5 can't
+see is a bug that only shows up when several rules interact over one real shift:
+a boundary crossed, a priority resolving the way two individually-correct rules
+did not anticipate together. That's what a hand-written scenario still earns its
+place doing, and it's bounded by the clause count rather than open-ended.
 
 Write `test/golden/<award-slug>-shifts.test.ts` in the shape of
 `retail-shifts.test.ts`, with **a clause cited on every expectation**. Cover at
@@ -373,7 +382,27 @@ this award. `scripts/extract-pay-guide.ts` exists. Two independent keys that hav
 to agree with each other as well as with the engine is worth considerably more
 than one.
 
-## Step 8: Closure run and review pack
+## Step 7.5: Semantic verification
+
+The eight closure axes prove a clause was read and a rule is reachable. None of
+them prove a rule's `days_of_week`, `time_from`, `priority` or `kind` says what
+the clause it cites actually says — that's a different question, answered
+probabilistically rather than with a boolean, which is why it is its own step
+and not a ninth axis.
+
+Run `/autofeature:award-verify <CODE>` (`$AUTOFEATURE_HOME/awards/verify-workflow.md`
+has the mechanism: two agents independently re-derive each predicate-bearing row
+from its clause text alone, blind to what shipped and to each other, and a third
+argues the shipped row is wrong only where they disagree).
+
+Any `confidence: high` finding is a hard stop here, in checkpoint mode and in
+automated mode alike: fix the row and re-run scoped to that clause, or record
+the override and the reasoning for it in the state file — an override is a
+judgement call and belongs beside the others from Step 4, not made silently.
+`medium`/`low` findings and the cleared disagreements carry forward into the
+review pack rather than blocking on their own.
+
+## Step 8: Closure run and review pack — HARD CHECKPOINT
 
 ```bash
 npm run rules:load && npm run verify && npm run closure -- <CODE> \
@@ -391,6 +420,9 @@ award and not SQL:
 - **every rule row, with its clause reference and the award's own words beside
   it**, grouped by clause, so the whole reading can be reviewed by reading one
   column
+- the Step 7.5 semantic-verification summary — rows checked, any table skipped
+  for lack of a schema, every confirmed defect and how it was resolved, every
+  cleared disagreement
 - the coverage tally, and every `Pending:` and `By design:` residual with its
   reason
 - the refusal ledger from Step 4, meaning what this award cannot say and why
@@ -399,6 +431,14 @@ award and not SQL:
   and the workbook release
 - the assumptions, in the `notes` style the service already uses, each stating
   which direction it errs in
+
+**Stop and present the review pack to the user.** This is a hard checkpoint in
+`mode:automated` too — closure and a passing suite are evidence a mapping is
+mechanically sound, not a claim that it's fit to be relied on. Say so plainly in
+the presentation: this raises confidence, it is not a compliance guarantee, and
+a business relying on it should have a qualified person, an award-interpretation
+lawyer or a Fair Work consultant, review the pack before it's treated as
+authoritative. Do not proceed to Step 9 without the user's go-ahead.
 
 ## Step 9: Ship
 
@@ -422,6 +462,11 @@ Do not merge. An award mapping nobody read is worth less than no mapping at all.
 - No editing MA000004's rules to make a shared check pass. If a shared check
   needs to change, it changes for a reason that is written down.
 - No reporting completion on any basis other than a green closure run.
+- No shipping past a `confidence: high` semantic-verification defect without
+  either fixing the row or writing the override and its reasoning into the
+  state file.
+- No presenting a green closure + verification run to the user as a compliance
+  guarantee. It is evidence a mapping is mechanically sound. Say what it is.
 
 ## Resume
 

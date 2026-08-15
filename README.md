@@ -146,9 +146,27 @@ Done is `npm run closure -- <CODE>` returning zero on all eight axes. Not an opi
 agent's answer to "are there gaps?", which is the question that used to have a new answer every time
 it was asked.
 
-Two checkpoints stop the run even in `mode:automated` — the transcription and the triage — because
-they are the only two steps carrying judgement. Reads `awards/gap-axes.md`, `awards/rule-tables.md`
-and `awards/service-conventions.md`.
+**But closure proves coverage, not correctness.** It proves a clause was read and a rule is reachable —
+it cannot prove a rule's day, time, priority or threshold says what the clause it cites actually says. A
+transposed day passes every closure check cleanly. That gap is closed by a separate step,
+`/autofeature:award-verify`, run automatically as Step 7.5: two agents independently re-derive each
+predicate-bearing row from its clause text alone, blind to what shipped and to each other, and a third
+argues the shipped row is wrong only where they disagree. It's re-runnable on its own too, scoped to
+just the clauses a wage review or an award variation touched:
+
+```
+/autofeature:award-verify MA000003
+/autofeature:award-verify MA000003 clauses: 15,15A
+```
+
+A `high`-confidence finding blocks. This raises confidence — it doesn't retire the risk, since
+independent agents can still share a blind spot on an unusual clause, which is why the pipeline's third
+hard checkpoint is a human reading the review pack before anything ships, not the closure run on its own.
+
+Three checkpoints stop the run even in `mode:automated` — the transcription, the triage, and that final
+sign-off — because they're the steps carrying judgement or deciding whether the mapping is fit to be
+relied on. Reads `awards/gap-axes.md`, `awards/rule-tables.md`, `awards/service-conventions.md` and
+`awards/verify-workflow.md`.
 
 ---
 
@@ -172,10 +190,12 @@ autofeature/
 ├── awards/                        ← award-mapping domain reference
 │   ├── gap-axes.md                ← the eight closure axes; how a mapping finishes
 │   ├── rule-tables.md             ← what the rule_* vocabulary can and cannot say
-│   └── service-conventions.md     ← rosterio-compliance-service conventions
+│   ├── service-conventions.md     ← rosterio-compliance-service conventions
+│   └── verify-workflow.md         ← semantic verification: coverage vs. correctness
 └── .claude/commands/
     ├── autofeature.md             ← the Claude Code command
-    └── award-map.md               ← award mapping
+    ├── award-map.md               ← award mapping
+    └── award-verify.md            ← semantic verification, standalone or as Step 7.5
 ```
 
 **Rule:** Edit files in `adapted/` and `.claude/commands/`. Never edit `source/` files — they're the baseline for tracking what changed.

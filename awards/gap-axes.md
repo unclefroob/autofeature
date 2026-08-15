@@ -208,9 +208,27 @@ $ npm run closure -- MA000003
 Non-zero anywhere means it prints the list. Zero everywhere is the definition of
 done, and it is the only definition of done a mapping run is permitted to use.
 
-## What the axes cannot catch
+## What the axes cannot catch, and what does
 
 They cannot catch a clause that was read, cited, and transcribed correctly but
-wired to the wrong rule. Nothing mechanical can. That is what the hand-checked
-scenario suite and the human review pack are for, and it is bounded by the clause
-count rather than open-ended, which is the difference that matters.
+wired to the wrong rule — a `Saturday` condition sitting on `days_of_week = {0}`
+passes every axis here, because every axis checks *existence and reachability*,
+never *does the predicate say what the clause says*. That is a different
+question, and it does not get a ninth axis, because it can't be answered with a
+boolean the way the eight above can.
+
+Two things answer it instead, and they are deliberately not the same mechanism:
+
+- **`awards/verify-workflow.md`** (run as Step 7.5 of `award-map.md`, or
+  standalone via `/autofeature:award-verify`) — independent re-derivation of
+  every predicate-bearing row from its clause text alone, diffed against what
+  shipped, with a third adversarial pass only where two blind readers disagree
+  with it. This is the closest thing to a mechanical check the correctness
+  question gets, and it covers every row, not a sample.
+- **The hand-checked scenario suite** (Step 7) — for the class of bug the row-by-
+  row check can't see at all: several individually-correct rules interacting
+  wrongly over one real shift, a boundary, a priority resolving in a way nobody
+  anticipated.
+
+Both raise confidence. Neither is a proof, and the closure table should never be
+presented as one — see the sign-off gate at Step 8 of `award-map.md`.
