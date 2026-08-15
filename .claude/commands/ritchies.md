@@ -4,7 +4,8 @@ description: |
   Build a feature across the Ritchies employee-portal platform (API + web + iOS + Android) from a single prompt.
   A Ritchies-specialized wrapper over the standard autofeature pipeline: hard-wires the four repos, always scaffolds the API first as the contract source of truth, then fans out only the clients you pick (web / iOS / Android) against the frozen contract.
   Enforces the repos' deliberate conventions (no Retrofit/Koin on Android, no react-query on web, iOS-parity mobile, four-pillar RBAC, employee-number auth).
-  Pipeline: interrogate → scope-gate → plan → branch → API (contract) → pick clients → implement (parallel architects) → test → review → ship.
+  Ingests Claude-design HTML exports by RENDERING them (Chrome MCP) into a Design Flow Map + screenshots, and verifies the built app against them.
+  Pipeline: design-ingest → interrogate → scope-gate → plan → branch → API (contract) → pick clients → implement (parallel architects) → test → review → ship → design-parity.
   Invoke as: /autofeature:ritchies [mode:] <feature description>
 allowed-tools:
   - Bash
@@ -24,6 +25,14 @@ allowed-tools:
   - mcp__trello__get_card_details
   - mcp__trello__get_card_checklists
   - mcp__trello__add_comment_to_card
+  - mcp__chrome-devtools__new_page
+  - mcp__chrome-devtools__navigate_page
+  - mcp__chrome-devtools__resize_page
+  - mcp__chrome-devtools__take_screenshot
+  - mcp__chrome-devtools__take_snapshot
+  - mcp__chrome-devtools__click
+  - mcp__chrome-devtools__list_pages
+  - mcp__chrome-devtools__close_page
 ---
 
 # AutoFeature — Ritchies Platform Orchestrator
@@ -47,6 +56,17 @@ Before Step 2, **read `$AUTOFEATURE_HOME/ritchies/conventions.md` in full** and 
 - Auth is **8-digit employee number** + JWT access/refresh with single-flight 401 refresh. API base `https://ritchies-platform-api-dev.azurewebsites.net`, endpoints `/api/<domain>`, plain-JSON responses, `{ "error": … }` errors.
 - Authorization = **four-pillar scoped RBAC**; **capabilities are the authority**, the 1-7 level is a preset/label. Clients gate on `GET /api/me/permissions`.
 - **Announcements is the reference feature** in every repo — architects mirror its shape.
+
+## New Step 1.5: Design Ingestion (run BEFORE interrogation)
+
+Ritchies features arrive as **Claude-design HTML exports**, and the flows are only legible when the HTML is **rendered**, not read as text. **Read `$AUTOFEATURE_HOME/ritchies/design-ingest.md` and follow its Phase 1** before Step 2:
+
+- **Ask every run:** "Path to the design export for this feature? (a file or the folder of `.dc.html` screens)". If the user provides nothing, note that ingest is skipped and proceed from their text description only.
+- **Render, don't parse** (Chrome DevTools MCP): open each screen at a phone viewport, `take_screenshot` every frame, `take_snapshot` for structure, and `click` through interactive elements to reveal loading/empty/error/sheet states. Prefer the `- Standalone.html` variant; group role/level variants (`… Team Member` vs `… Manager`, `Levels 1-3` vs `4 plus`).
+- **Emit the Design Flow Map** to `.autofeature/designs/<feature>-design-<date>.md` (+ screenshots in `design-shots/<feature>/`): ordered screens, per-screen states, the access-level/capability variant table, the data model the UI implies, and any **open design questions** (multiple options shown, ambiguous copy) — surface those to the user, never guess or silently pick between design variants.
+- The Flow Map becomes the **UI source of truth**: feed it (and the screenshots) to every architect alongside `ritchies/conventions.md` in Step 5b/7b, and feed the **UI-implied fields** into the API design + `api-contract-broker` so the backend returns what the mockups show.
+
+This runs even for API-only work when a design is provided (the mockups still pin the contract fields). Skip it cleanly when no design is given.
 
 ## Override — Step 4: Cross-Repo Detection (hard-wired, replaces the generic detector)
 
@@ -85,7 +105,7 @@ If any is missing, tell the user which and ask whether to proceed with the ones 
    | iOS | `swift-architect` | `ritchies-mobile` |
    | Android | `kotlin-compose-architect` (`$AUTOFEATURE_HOME/agents/kotlin-compose-architect.md`) | `ritchies-android` |
 
-   Dispatch exactly like the base command: read the architect `.md`, inline it into an `Agent` spawn (`subagent_type: "general-purpose"`, `model:` per `orchestrator/model-tiers.md`), pass Brief path + Plan + repo root + "`api-contract-broker` active" + the conventions doc. Send all chosen-client spawns in **one message** for parallelism.
+   Dispatch exactly like the base command: read the architect `.md`, inline it into an `Agent` spawn (`subagent_type: "general-purpose"`, `model:` per `orchestrator/model-tiers.md`), pass Brief path + Plan + repo root + "`api-contract-broker` active" + the conventions doc + **the Design Flow Map path + screenshots dir** (from Step 1.5, when a design was ingested). Send all chosen-client spawns in **one message** for parallelism.
 
 **Parity rule:** when both iOS and Android are picked, tell each architect to mirror the other field-for-field (identical DTO keys, domain shapes, tile keys, capability strings). When both are built, they must consume the same contract the web client does.
 
@@ -95,7 +115,7 @@ Create the feature branch in the API repo and in each **chosen** client repo (sa
 
 ## Override — Step 7b: implementation (per architect, parallel)
 
-For the API and each chosen client, spawn the same architect in `implement` mode, all in one message. Reinforce the per-repo guardrails from `ritchies/conventions.md`, especially:
+For the API and each chosen client, spawn the same architect in `implement` mode, all in one message. **Pass the Design Flow Map (`.autofeature/designs/<feature>-design-<date>.md`) + its screenshots to every UI architect** — they must build every screen, state, and access-level variant it enumerates, not just the happy path. Reinforce the per-repo guardrails from `ritchies/conventions.md`, especially:
 - **API:** enforce **route → controller → service → model** — business logic in `src/services/<domain>Service.ts` (HTTP-agnostic function module), controllers stay thin (inline zod parse → resolve access → call service → shape response → `try/catch → next`). **Reuse existing services** (`auth/resolver`, `auth/audit`, `chat/service`, …) and **extract shared helpers** into `src/services/*` rather than duplicating (kill the duplicated `initialsOf`/`relativeTime`). `errorHandler` stays last in `app.ts`; scoped caps checked in service/handler (not `requireCapability`). Write both the service unit test and the route supertest. CI gates on **typecheck + jest + build** — all must pass.
 - **Web:** one `lib/<domain>.ts` (axios + types + helpers), page in `pages/app|admin/`, `<Route>` + `RequireCapability` in `App.tsx`, capability key in `lib/access.ts`. **No test framework** unless the Brief asks.
 - **iOS:** `Features/<Name>/` with `@Observable <Name>Store`, `(level, capabilities, onClose)` view, wire into `DashboardView` + `AccessModel`; `xcodegen generate` after adding files; Swift Testing decode test.
@@ -107,6 +127,13 @@ For the API and each chosen client, spawn the same architect in `implement` mode
 - **Web:** typecheck + `vite build`. There are no unit tests to run; do not claim any.
 - **iOS:** prefer `xcodebuild`; if unavailable, `swiftc -typecheck` and report "compile-checked only." Never claim "tested on simulator" for a type-check. Note that adding/moving files needs a real Xcode build (`swiftc` is blind to the project file).
 - **Android:** this environment **can** build — try `:app:assembleDebug` with SDK + JDK17 + gradle-8.9 (see the architect's Verification section). If the toolchain isn't present, say "compile-checked only / NOT built." Never inflate.
+
+## New Step 10.6: Design Parity (after ship, only if a design was ingested)
+
+If Step 1.5 produced a Design Flow Map, run **Phase 2 of `$AUTOFEATURE_HOME/ritchies/design-ingest.md`** to verify the built app matches the design (reusing the `adapted/feature-test.md` / `/autofeature:test` machinery):
+- Drive the built app at the access level(s) the design targets — web via Chrome DevTools MCP, iOS in the simulator, Android in the emulator — and `take_screenshot` of each screen/state the Flow Map listed.
+- Compare each built screen against its `design-shots/<feature>/` reference: layout, the elements the Flow Map named, the correct per-level variant, and the states (empty/error/loading). Report **per-screen PASS / DIVERGES (what differs) / MISSING**.
+- Advisory only — hand divergences back to the user or into a follow-up run; do not silently rewrite the app or the design to force a match. Brand/token exactness defers to the `ritchies-design` skill. Note honestly which platforms you could actually drive (e.g. iOS may be compile-only with no simulator).
 
 ## Everything else
 
