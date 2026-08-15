@@ -180,9 +180,16 @@ before the variation is supposed to keep pricing against the old reading. The fi
 window and adds a new one, both living in the same source file — a blind delete-and-reinsert would
 silently break every historical or backpay calculation touching that clause.
 
-Three checkpoints stop the run even in `mode:automated` — the transcription, the triage, and that final
-sign-off — because they're the steps carrying judgement or deciding whether the mapping is fit to be
-relied on. Reads `awards/gap-axes.md`, `awards/rule-tables.md`, `awards/service-conventions.md` and
+**Merging the PR is not going live.** There's one deployed database, not a staging and a production
+one, so the first time an award's rules load remotely, it's directly into what prices real shifts.
+Promotion is its own gated step: connect to the deployed database, re-run `verify`, `award-verify` and
+`closure` against it — a pass locally is not evidence of a pass remotely — and only after the user
+confirms those results is the award considered live.
+
+Four checkpoints stop the run even in `mode:automated` — the transcription, the triage, the sign-off
+before shipping, and promotion itself — because they're the steps carrying judgement, deciding whether
+the mapping is fit to be relied on, or crossing into something real customers price shifts against.
+Reads `awards/gap-axes.md`, `awards/rule-tables.md`, `awards/service-conventions.md` and
 `awards/verify-workflow.md`.
 
 ---

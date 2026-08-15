@@ -5,6 +5,7 @@ description: |
   Enumeration-first, deliberately: transcribe the award's clause list and per-clause sub-clause counts from the Commission's consolidated PDF, triage every clause against the closed rule vocabulary, stand up the eight closure axes to produce a FIXED work list, and only then author SQL against a list that can only shrink.
   Exists to kill the perpetual-gap loop. "Are there gaps?" becomes one command that returns a list, instead of a question an agent answers differently every time it is asked.
   Closure proves coverage, not correctness — Step 7.5 runs /autofeature:award-verify to independently re-derive every predicate-bearing row from its clause text and adversarially check it against what shipped, closing the one gap closure can't: a rule that's reachable and cites the right clause but got the day, the time or the priority wrong.
+  A PR merging is not the award going live — Step 9.5 gates promotion to the one deployed database (no staging tier exists today) behind a re-run of verify, award-verify and closure against it, and explicit user sign-off.
   Invoke as: /autofeature:award-map <AWARD_CODE> [mode:checkpoint|automated] [resume]
 allowed-tools:
   - Bash
@@ -52,11 +53,12 @@ authoritative:**
 
 - `<AWARD_CODE>` — required, e.g. `MA000003`. Refuse to proceed without one.
 - `mode:checkpoint` (default) — stop at every checkpoint below.
-  `mode:automated` — run through, but the three **hard** checkpoints still stop:
-  the transcription (Step 2), the expressiveness triage (Step 4), and the
-  human sign-off on the closure + semantic-verification report (Step 8). They
-  are where judgement is exercised or where the mapping's whole claim to be
-  trustworthy is either earned or not, and none of the three may be skipped.
+  `mode:automated` — run through, but the four **hard** checkpoints still stop:
+  the transcription (Step 2), the expressiveness triage (Step 4), the human
+  sign-off on the closure + semantic-verification report (Step 8), and
+  promotion to the live database (Step 9.5). They are where judgement is
+  exercised, where the mapping's claim to be trustworthy is earned, or where
+  the action stops being reversible, and none of the four may be skipped.
 - `resume` — pick up from the state file, see Resume.
 
 ## Iron Laws
@@ -82,7 +84,8 @@ authoritative:**
 0 preflight ─ 1 acquire ─ 2 transcribe [HARD CHECKPOINT] ─ 3 shape ─
 4 triage [HARD CHECKPOINT] ─ 5 stand up closure → WORK LIST ─
 6 author (burn down) ─ 7 scenario suite ─ 7.5 semantic verification ─
-8 closure run + review pack [HARD CHECKPOINT] ─ 9 ship
+8 closure run + review pack [HARD CHECKPOINT] ─ 9 ship ─
+9.5 promote [HARD CHECKPOINT]
 ```
 
 The order matters and was arrived at the hard way. The closure axes cannot run
@@ -456,6 +459,58 @@ closure table and the refusal ledger. Attach the review pack.
 
 Do not merge. An award mapping nobody read is worth less than no mapping at all.
 
+## Step 9.5: Promote — HARD CHECKPOINT
+
+**Merging the PR does not put the award anywhere.** Code and data deploy
+separately: `gcloud run deploy` ships the engine, which carries zero award
+data by design; the rules just merged to main live only in the git repo until
+someone loads them into a real database. And **there is one deployed
+database, not a staging and a production one** — `docs/deploy.md` describes a
+single Cloud SQL instance (`rosterio-award`) behind the one Cloud Run service
+that `shiftos-api` calls for real payroll. The first time this award's rules
+get loaded remotely, it is directly into what real customers price shifts
+against. Treat this step with that weight — it is a hard checkpoint in
+`mode:automated` too, and nobody proceeds past it without the user's explicit
+go-ahead.
+
+This is the minimum-viable version of this step: it makes the existing,
+real promotion mechanism an explicit, gated part of the pipeline, rather than
+an assumption left for whoever merges the PR to rediscover. It does not add a
+staging tier — that's a real infra decision (a second Cloud SQL instance, a
+second Cloud Run service) for the user to make separately, not something this
+command provisions on its own.
+
+```bash
+# From docs/deploy.md. Requires gcloud auth and access to the `rosterio` project.
+cloud-sql-proxy --token "$(gcloud auth print-access-token)" \
+  --port 55433 rosterio:australia-southeast1:rosterio-award &
+
+export DATABASE_URL="postgresql://award:$(gcloud secrets versions access latest \
+  --secret=compliance-database-url --project=rosterio | sed -E 's#.*://award:([^@]*)@.*#\1#')@127.0.0.1:55433/award"
+```
+
+With `DATABASE_URL` pointing at the proxied connection, `scripts/lib/psql.sh`
+and every `npm run` script route to it automatically — nothing else changes.
+
+1. `npm run rules:load` — applies every award's SQL fresh, this one included.
+   Each award's file deletes only its own instrument's rows (per
+   `service-conventions.md`'s versioning doctrine), so this does not disturb
+   any other award or any employer's `rate_override`/`declaration` data.
+2. `npm run verify` — must be clean against the remote database, same as
+   local. A pass locally is not evidence of a pass remotely; the workbooks or
+   award text loaded there may not be what was tested against.
+3. `/autofeature:award-verify <CODE>` — re-run against the remote database.
+   Not optional and not assumed-same-as-local: this is the same "don't trust,
+   check" principle applied to the promotion boundary itself.
+4. `npm run closure -- MA000004` (and any other previously-mapped award) —
+   confirm nothing else regressed. The remote database may be on a different
+   workbook release than local.
+
+**Stop and present the remote verify + closure + award-verify results to the
+user before this is called done.** Only after they confirm does this award
+count as live. Record the promotion — who, when, which git commit — in
+`.autofeature/awards/<CODE>-map.md`.
+
 ---
 
 ## Prohibitions
@@ -474,6 +529,10 @@ Do not merge. An award mapping nobody read is worth less than no mapping at all.
   state file.
 - No presenting a green closure + verification run to the user as a compliance
   guarantee. It is evidence a mapping is mechanically sound. Say what it is.
+- No considering a mapping "done" because the PR merged. It is done when
+  Step 9.5 has run against the actual deployed database and the user has
+  confirmed it — there is no staging tier today, so this is the only
+  rehearsal an award gets before it prices a real shift.
 
 ## Resume
 
