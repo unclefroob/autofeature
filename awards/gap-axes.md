@@ -208,6 +208,14 @@ $ npm run closure -- MA000003
 Non-zero anywhere means it prints the list. Zero everywhere is the definition of
 done, and it is the only definition of done a mapping run is permitted to use.
 
+**A clause can carry more than one row once an award has been re-authored after
+a variation** — see "Re-authoring after a variation" in `service-conventions.md`.
+Axes answering "is the current reading correct" (3, 4, 5, 6) must filter
+`operative_to IS NULL`; axes answering "was this clause ever accounted for"
+(1, 2, 8) must not — a clause doesn't stop being read because its reading
+later changed. Getting this backwards reports either false ambiguity or a
+false coverage gap on every award that's ever been re-mapped.
+
 ## What the axes cannot catch, and what does
 
 They cannot catch a clause that was read, cited, and transcribed correctly but

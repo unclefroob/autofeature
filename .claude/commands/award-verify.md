@@ -38,9 +38,9 @@ done
 ## Args
 
 - `<AWARD_CODE>` — required, e.g. `MA000003`.
-- `tables:` — optional comma list, restricts to those `rule_*` tables. Default: all six the workflow
+- `tables:` — optional comma list, restricts to those `rule_*` tables. Default: all eight the workflow
   covers (`rule_condition`, `rule_span`, `rule_overtime_threshold`, `rule_junior_band`, `rule_allowance`,
-  `rule_roster`).
+  `rule_roster`, `rule_leave`, `rule_break_placement`).
 - `clauses:` — optional comma list of clause prefixes (e.g. `15,15A`), restricts to rows whose `clauses`
   column starts with one of them. Use this for a targeted re-check after an award variation, rather than
   re-running the whole award.
@@ -66,6 +66,13 @@ Workflow scripts have no database access, so the rows are fetched here, in this 
 and passed in as `args`. One query per table, `jsonb_build_object` shaped to match `db/schema.sql`
 field-for-field — the diff in the workflow is only meaningful if the field names line up exactly.
 
+Every branch filters `AND operative_to IS NULL`. An award can carry more than one row per clause once
+it's been re-mapped after a variation, the historical one closed out and a current one taking over —
+see "Re-authoring after a variation" in `award-drift.md`. This command verifies the **current** reading
+by default; verifying a historical version is a deliberate, separate request, not the default, and if
+asked for it, add `AND operative_from <= '<AS-OF DATE>' AND (operative_to IS NULL OR operative_to > '<AS-OF DATE>')`
+in place of `operative_to IS NULL` instead.
+
 Apply the `tables:`/`clauses:` filters as `WHERE` clauses on each branch (`clauses LIKE '15%' OR clauses
 LIKE '15A%'` etc. for a `clauses:` filter; omit table branches not in `tables:`).
 
@@ -79,37 +86,59 @@ SELECT jsonb_agg(r) FROM (
            'ot_hours_to', ot_hours_to, 'priority', priority, 'worker_type', worker_type,
            'whole_shift', whole_shift
          ) AS predicate
-    FROM rule_condition WHERE instrument_id = '<CODE>' AND clause_text IS NOT NULL
+    FROM rule_condition
+   WHERE instrument_id = '<CODE>' AND clause_text IS NOT NULL AND operative_to IS NULL
 
   UNION ALL
   SELECT 'rule_span', clauses, clause_text,
          jsonb_build_object('day_of_week', day_of_week, 'worker_type', worker_type,
                              'time_from', time_from, 'time_to', time_to)
-    FROM rule_span WHERE instrument_id = '<CODE>' AND clause_text IS NOT NULL
+    FROM rule_span
+   WHERE instrument_id = '<CODE>' AND clause_text IS NOT NULL AND operative_to IS NULL
 
   UNION ALL
   SELECT 'rule_overtime_threshold', clauses, clause_text,
          jsonb_build_object('employment_type', employment_type, 'daily_hours', daily_hours,
                              'long_day_hours', long_day_hours, 'weekly_hours', weekly_hours)
-    FROM rule_overtime_threshold WHERE instrument_id = '<CODE>' AND clause_text IS NOT NULL
+    FROM rule_overtime_threshold
+   WHERE instrument_id = '<CODE>' AND clause_text IS NOT NULL AND operative_to IS NULL
 
   UNION ALL
   SELECT 'rule_junior_band', clauses, clause_text,
          jsonb_build_object('age_from', age_from, 'age_to', age_to,
                              'service_months_from', service_months_from,
                              'service_months_to', service_months_to)
-    FROM rule_junior_band WHERE instrument_id = '<CODE>' AND clause_text IS NOT NULL
+    FROM rule_junior_band
+   WHERE instrument_id = '<CODE>' AND clause_text IS NOT NULL AND operative_to IS NULL
 
   UNION ALL
   SELECT 'rule_allowance', clauses, clause_text,
          jsonb_build_object('trigger', trigger, 'unit', unit, 'all_purpose', all_purpose)
-    FROM rule_allowance WHERE instrument_id = '<CODE>' AND clause_text IS NOT NULL
+    FROM rule_allowance
+   WHERE instrument_id = '<CODE>' AND clause_text IS NOT NULL AND operative_to IS NULL
 
   UNION ALL
   SELECT 'rule_roster', clauses, clause_text,
          jsonb_build_object('kind', kind, 'value', value, 'value_secondary', value_secondary,
                              'window_days', window_days, 'overtime_consequence', overtime_consequence)
-    FROM rule_roster WHERE instrument_id = '<CODE>' AND clause_text IS NOT NULL
+    FROM rule_roster
+   WHERE instrument_id = '<CODE>' AND clause_text IS NOT NULL AND operative_to IS NULL
+
+  UNION ALL
+  SELECT 'rule_leave', clauses, clause_text,
+         jsonb_build_object('source', source, 'paid', paid, 'applies_to', applies_to,
+                             'worker_type', worker_type, 'accrual_method', accrual_method,
+                             'weeks_per_year', weeks_per_year, 'days_per_occasion', days_per_occasion,
+                             'hours_per_occasion', hours_per_occasion, 'excessive_weeks', excessive_weeks,
+                             'cumulative', cumulative)
+    FROM rule_leave
+   WHERE instrument_id = '<CODE>' AND clause_text IS NOT NULL AND operative_to IS NULL
+
+  UNION ALL
+  SELECT 'rule_break_placement', clauses, clause_text,
+         jsonb_build_object('kind', kind, 'value', value)
+    FROM rule_break_placement
+   WHERE instrument_id = '<CODE>' AND clause_text IS NOT NULL AND operative_to IS NULL
 ) r
 " > /tmp/award-verify-rows.json
 ```

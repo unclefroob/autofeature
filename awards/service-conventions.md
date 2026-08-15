@@ -124,6 +124,23 @@ per-employer setting recorded against their instrument, not a decision taken
 here. `docs/interpretation-settings.md` holds the doctrine and the constraint
 that only a rule which can NAME the breaching day may carry a pay consequence.
 
+**Re-authoring after a variation never deletes a superseded row.** Every
+`rule_*` table already carries `operative_from`/`operative_to`, and the engine's
+query layer already resolves against them (`asOf`/`PointInTime` in
+`src/data/rates.ts`, `src/data/instrument.ts`) — a shift dated before a
+variation is meant to still price against the reading that was actually in
+force then. `rules-load.sh`'s blanket `DELETE FROM rule_* WHERE instrument_id =
+'<CODE>'` is correct and safe for a **first** mapping, where there's no history
+yet to lose. It is not safe for a re-mapping: the fix is to close the old row's
+`operative_to` in the source SQL file and add a new row from the new date,
+never to edit the old row's predicate or remove it, because the file is
+reconstructed from scratch on every `db:reset` and has to hold the full
+history for a fresh database to have it. See `award-drift.md` Step 5 for the
+full procedure. Any completeness check answering "is the CURRENT reading
+correct" must filter `operative_to IS NULL`; any check answering "was this
+clause ever read" must not, since a clause doesn't stop being read because its
+reading later changed.
+
 ## Commands
 
 ```bash

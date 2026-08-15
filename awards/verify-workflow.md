@@ -30,11 +30,18 @@ much shorter list than "read every row."
 
 ## Tables covered
 
-The six tables where judgement about **when** and **how much** lives, i.e. where a day, a time, a
-priority or a threshold can be transposed: `rule_condition`, `rule_span`, `rule_overtime_threshold`,
-`rule_junior_band`, `rule_allowance`, `rule_roster`. `rule_break_entitlement`, `rule_break_placement` and
-`rule_leave` are the same shape and the same mechanism extends to them the same way — add a schema entry
-below when an award needs it verified; don't invent new machinery.
+Eight tables where judgement about **when** and **how much** lives, i.e. where a day, a time, a priority
+or a threshold can be transposed: `rule_condition`, `rule_span`, `rule_overtime_threshold`,
+`rule_junior_band`, `rule_allowance`, `rule_roster`, `rule_leave`, `rule_break_placement`.
+`rule_break_entitlement` is the same shape and the same mechanism extends to it the same way — add a
+schema entry when an award needs it verified; don't invent new machinery.
+
+`rule_leave` and `rule_break_placement` are not optional extras. They're in the set because
+`schema.sql`'s own comments record real production bugs in exactly these two: cl 29.3's casual carer's
+leave was once converted from "48 hours of elapsed absence" into rostered days, producing a different
+wrong number for every casual, and the break-placement modelling gap (cl 16.5) is in the README's own
+account of what shipped late. A verification pass that skips the two tables that already burned this
+service once is not a serious verification pass.
 
 ## Running it
 
@@ -181,6 +188,48 @@ const SCHEMAS = {
       },
     },
   },
+  rule_leave: {
+    fields: 'source (nes|award — "the Act says" and "the award says" are different claims), ' +
+      'paid (boolean), applies_to (array of full_time|part_time|casual), worker_type (null=any), ' +
+      'accrual_method (progressive|upfront_annual|per_occasion), weeks_per_year (progressive/upfront only), ' +
+      'days_per_occasion vs hours_per_occasion — THESE ARE NOT INTERCHANGEABLE. A period stated as ' +
+      '"hours of absence" (elapsed time, e.g. cl 29.3\'s 48 hours) is hours_per_occasion; a period stated ' +
+      'in DAYS is days_per_occasion. Converting one into the other by multiplying by rostered hours is ' +
+      'exactly the defect that shipped once already. At most one of the two may be set. ' +
+      'excessive_weeks (the balance, in weeks, at which cl 28.5-style excessive-leave provisions bite; ' +
+      'null if the award has none), cumulative (does an unused balance carry over)',
+    schema: {
+      type: 'object', required: ['source', 'paid', 'accrualMethod', 'reasoning'],
+      properties: {
+        source: { type: 'string', enum: ['nes', 'award'] },
+        paid: { type: 'boolean' },
+        appliesTo: { type: 'array', items: { type: 'string', enum: ['full_time', 'part_time', 'casual'] } },
+        workerType: { type: ['string', 'null'] },
+        accrualMethod: { type: 'string', enum: ['progressive', 'upfront_annual', 'per_occasion'] },
+        weeksPerYear: { type: ['number', 'null'] },
+        daysPerOccasion: { type: ['number', 'null'] },
+        hoursPerOccasion: { type: ['number', 'null'] },
+        excessiveWeeks: { type: ['number', 'null'] },
+        cumulative: { type: 'boolean' },
+        reasoning: { type: 'string' },
+      },
+    },
+  },
+  rule_break_placement: {
+    fields: 'kind (CLOSED vocabulary: no_break_in_first_hour, no_break_in_last_hour, no_combined_breaks, ' +
+      'max_hours_before_meal, rest_breaks_split), value (hours or minutes — read which the clause states; ' +
+      'no_break_in_first_hour/last_hour and max_hours_before_meal are HOURS, no_combined_breaks is MINUTES ' +
+      'of contiguity, rest_breaks_split has no meaningful value beyond a placeholder)',
+    schema: {
+      type: 'object', required: ['kind', 'value', 'reasoning'],
+      properties: {
+        kind: { type: 'string', enum: ['no_break_in_first_hour', 'no_break_in_last_hour',
+          'no_combined_breaks', 'max_hours_before_meal', 'rest_breaks_split'] },
+        value: { type: 'number' },
+        reasoning: { type: 'string' },
+      },
+    },
+  },
 }
 
 // ---------- Stage 1: two blind readers, in parallel, per row ----------
@@ -234,6 +283,11 @@ const FIELD_MAP = {
   rule_allowance: [['trigger', 'trigger'], ['unit', 'unit'], ['allPurpose', 'all_purpose']],
   rule_roster: [['kind', 'kind'], ['value', 'value'], ['valueSecondary', 'value_secondary'],
     ['windowDays', 'window_days'], ['overtimeConsequence', 'overtime_consequence']],
+  rule_leave: [['source', 'source'], ['paid', 'paid'], ['appliesTo', 'applies_to'],
+    ['workerType', 'worker_type'], ['accrualMethod', 'accrual_method'], ['weeksPerYear', 'weeks_per_year'],
+    ['daysPerOccasion', 'days_per_occasion'], ['hoursPerOccasion', 'hours_per_occasion'],
+    ['excessiveWeeks', 'excessive_weeks'], ['cumulative', 'cumulative']],
+  rule_break_placement: [['kind', 'kind'], ['value', 'value']],
 }
 
 function diffRow(derived) {

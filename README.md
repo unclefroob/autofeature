@@ -164,15 +164,21 @@ independent agents can still share a blind spot on an unusual clause, which is w
 hard checkpoint is a human reading the review pack before anything ships, not the closure run on its own.
 
 **Neither closure nor verification is a subscription.** Both are point-in-time. If the FWC varies an
-award's wording after mapping, nothing here notices on its own — rate changes flow through free on the
-next `npm run db:load`, but a changed span or a new condition doesn't. `/autofeature:award-drift` is the
-manual check: re-fetches the award's text, diffs it clause-by-clause against what's stored, and names
-exactly which rows are affected, scoped for `award-verify`. Run it when you have reason to suspect a
+award after mapping, nothing here notices on its own. `/autofeature:award-drift` is the manual check:
+re-fetches the award's text, diffs it clause-by-clause against what's stored, names exactly which rows
+are affected, and flags when the pay database itself may need a fresh workbook — the text diff can't
+see that side, since the workbooks have no fetch script at all. Run it when you have reason to suspect a
 variation landed — it's meant to be triggered, not scheduled.
 
 ```
 /autofeature:award-drift MA000003
 ```
+
+When something has moved, **re-authoring never deletes the superseded row.** Every rule already carries
+`operative_from`/`operative_to`, and the engine already resolves shifts against them, so a shift dated
+before the variation is supposed to keep pricing against the old reading. The fix closes the old row's
+window and adds a new one, both living in the same source file — a blind delete-and-reinsert would
+silently break every historical or backpay calculation touching that clause.
 
 Three checkpoints stop the run even in `mode:automated` — the transcription, the triage, and that final
 sign-off — because they're the steps carrying judgement or deciding whether the mapping is fit to be
