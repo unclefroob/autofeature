@@ -163,6 +163,17 @@ A `high`-confidence finding blocks. This raises confidence — it doesn't retire
 independent agents can still share a blind spot on an unusual clause, which is why the pipeline's third
 hard checkpoint is a human reading the review pack before anything ships, not the closure run on its own.
 
+**Neither closure nor verification is a subscription.** Both are point-in-time. If the FWC varies an
+award's wording after mapping, nothing here notices on its own — rate changes flow through free on the
+next `npm run db:load`, but a changed span or a new condition doesn't. `/autofeature:award-drift` is the
+manual check: re-fetches the award's text, diffs it clause-by-clause against what's stored, and names
+exactly which rows are affected, scoped for `award-verify`. Run it when you have reason to suspect a
+variation landed — it's meant to be triggered, not scheduled.
+
+```
+/autofeature:award-drift MA000003
+```
+
 Three checkpoints stop the run even in `mode:automated` — the transcription, the triage, and that final
 sign-off — because they're the steps carrying judgement or deciding whether the mapping is fit to be
 relied on. Reads `awards/gap-axes.md`, `awards/rule-tables.md`, `awards/service-conventions.md` and
@@ -195,7 +206,8 @@ autofeature/
 └── .claude/commands/
     ├── autofeature.md             ← the Claude Code command
     ├── award-map.md               ← award mapping
-    └── award-verify.md            ← semantic verification, standalone or as Step 7.5
+    ├── award-verify.md            ← semantic verification, standalone or as Step 7.5
+    └── award-drift.md             ← manual check: has the award's text moved?
 ```
 
 **Rule:** Edit files in `adapted/` and `.claude/commands/`. Never edit `source/` files — they're the baseline for tracking what changed.
