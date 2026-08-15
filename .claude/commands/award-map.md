@@ -470,7 +470,8 @@ Do not merge. An award mapping nobody read is worth less than no mapping at all.
 
 ## Resume
 
-Read `.autofeature/awards/<CODE>-map.md`, find the last completed step, re-run
-`npm run closure -- <CODE>` to re-establish the balance, and continue. The
-closure run is idempotent and is the source of truth about where the mapping
-actually is, which is the point of having it.
+`git checkout award/<code-lowercase>` first — resume picks up work, not a fresh
+branch. Then read `.autofeature/awards/<CODE>-map.md`, find the last completed
+step, re-run `npm run closure -- <CODE>` to re-establish the balance, and
+continue. The closure run is idempotent and is the source of truth about where
+the mapping actually is, which is the point of having it.
