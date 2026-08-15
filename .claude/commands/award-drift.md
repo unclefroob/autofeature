@@ -33,8 +33,12 @@ for c in "$CWD" "$PARENT/rosterio-compliance-service" "$CWD/rosterio-compliance-
   [ -f "$c/db/schema.sql" ] && { SVC="$c"; break; }
 done
 cd "$SVC"
+source scripts/lib/psql.sh
 cp "data/raw/award-text-<CODE>.json" /tmp/award-text-<CODE>-before.json
 ```
+
+Every SQL step below uses `psql_query "<sql>"` from that file, never a bare `psql` invocation — there is
+deliberately no `psql` binary assumed on this machine; see `award-verify.md` Step 1 for why.
 
 If that file doesn't exist, this award was never fetched — nothing to diff against, stop and say so.
 
@@ -75,8 +79,8 @@ stopping — a clean text diff says nothing about whether the pay database is cu
 
 There is no fetch script for the workbooks, so this can only surface the question, never answer it:
 
-```sql
-SELECT award_code, version_number FROM fwc_award WHERE award_code = '<CODE>';
+```bash
+psql_query "SELECT award_code, version_number FROM fwc_award WHERE award_code = '<CODE>'"
 ```
 
 Report the loaded version alongside a reminder to check
@@ -91,7 +95,8 @@ For every clause in `changed`/`added`/`removed`, find what cites it. Every branc
 tables `verify-workflow.md` covers, plus the ones it doesn't (`rule_break_entitlement`, `rule_evidence`)
 so a clause touching those isn't silently missed just because semantic verification can't check it yet:
 
-```sql
+```bash
+psql_query "
 SELECT 'rule_condition' AS tbl, clauses FROM rule_condition WHERE instrument_id = '<CODE>' AND clauses LIKE '<clause>%' AND operative_to IS NULL
 UNION ALL SELECT 'rule_span', clauses FROM rule_span WHERE instrument_id = '<CODE>' AND clauses LIKE '<clause>%' AND operative_to IS NULL
 UNION ALL SELECT 'rule_overtime_threshold', clauses FROM rule_overtime_threshold WHERE instrument_id = '<CODE>' AND clauses LIKE '<clause>%' AND operative_to IS NULL
@@ -102,6 +107,7 @@ UNION ALL SELECT 'rule_leave', clauses FROM rule_leave WHERE instrument_id = '<C
 UNION ALL SELECT 'rule_break_placement', clauses FROM rule_break_placement WHERE instrument_id = '<CODE>' AND clauses LIKE '<clause>%' AND operative_to IS NULL
 UNION ALL SELECT 'rule_break_entitlement', clauses FROM rule_break_entitlement WHERE instrument_id = '<CODE>' AND clauses LIKE '<clause>%' AND operative_to IS NULL
 UNION ALL SELECT 'rule_evidence', clauses FROM rule_evidence WHERE instrument_id = '<CODE>' AND clauses LIKE '<clause>%' AND operative_to IS NULL
+"
 ```
 
 `operative_to IS NULL` means "currently in force." Only the live row needs scoping here — a historical

@@ -54,11 +54,18 @@ for c in "$CWD" "$PARENT/rosterio-compliance-service" "$CWD/rosterio-compliance-
 done
 [ -z "$SVC" ] && { echo "Run from rosterio-compliance-service or its parent."; exit 1; }
 cd "$SVC"
-DB="${DATABASE_URL:-postgres://award:award@localhost:55432/award}"
+source scripts/lib/psql.sh
 ```
 
-Confirm the award has rules loaded (`SELECT count(*) FROM rule_clause_group WHERE instrument_id =
-'<CODE>'` is non-zero). If it's zero, this is the wrong command — map it first with `/autofeature:award-map`.
+**There is deliberately no `psql` binary assumed on this machine** — `scripts/lib/psql.sh` is the
+service's own answer to that, routing every query through a throwaway container (or the host network,
+if `DATABASE_URL` points at a deployed database) rather than requiring a system install. Use its
+`psql_query "<sql>"` for a read and `apply_sql "<path>"` for a file — never a bare `psql` invocation, it
+will not exist to run.
+
+Confirm the award has rules loaded (`psql_query "SELECT count(*) FROM rule_clause_group WHERE
+instrument_id = '<CODE>'"` is non-zero). If it's zero, this is the wrong command — map it first with
+`/autofeature:award-map`.
 
 ## Step 2: Pull every predicate-bearing row as one JSON array
 
@@ -77,7 +84,7 @@ Apply the `tables:`/`clauses:` filters as `WHERE` clauses on each branch (`claus
 LIKE '15A%'` etc. for a `clauses:` filter; omit table branches not in `tables:`).
 
 ```bash
-psql "$DB" -tAc "
+psql_query "
 SELECT jsonb_agg(r) FROM (
   SELECT 'rule_condition' AS tbl, clauses AS clause, clause_text AS \"clauseText\",
          jsonb_build_object(

@@ -112,27 +112,37 @@ for c in "$CWD" "$PARENT/rosterio-compliance-service" "$CWD/rosterio-compliance-
 done
 [ -z "$SVC" ] && { echo "Run from rosterio-compliance-service or its parent."; exit 1; }
 cd "$SVC"
+source scripts/lib/psql.sh
 ```
+
+**There is deliberately no `psql` binary assumed on this machine.** `scripts/lib/psql.sh` is the
+service's own answer — it routes every query through a throwaway container (or the host network, once
+`DATABASE_URL` points at a deployed database) instead of requiring a system install. Use its
+`psql_query "<sql>"` for a read and `apply_sql "<path>"` for a file, everywhere in this pipeline — a bare
+`psql` invocation will not exist to run.
 
 Then, in order, stopping on the first failure:
 
 1. `git status --porcelain` is clean, or the user confirms the working tree.
 2. Database up and loaded. Check it directly rather than via the service's
    `/health`, because nothing says the service is running during a mapping:
-   `psql ... -c "SELECT count(*) FROM fwc_penalty"` returning thousands of rows
+   `psql_query "SELECT count(*) FROM fwc_penalty"` returning thousands of rows
    means loaded. Otherwise `npm run db:up && npm run db:load`, then
-   `npm run award:load && npm run nes:load && npm run rules:load`.
+   `npm run award:load && npm run nes:load && npm run rules:load` — and note that
+   none of those `npm run` scripts source `.env` on their own (there is no
+   dotenv here); `export $(grep -v '^#' .env | xargs)` or equivalent first, or
+   `DATABASE_URL is not set` is the result.
 3. `npm run verify` passes.
 4. `npm test` passes. Record the test count in the state file. It is the baseline
    the final run is compared against.
 5. The award exists in the extract:
-   ```sql
-   SELECT award_code, name, version_number FROM fwc_award WHERE award_code = '<CODE>';
+   ```bash
+   psql_query "SELECT award_code, name, version_number FROM fwc_award WHERE award_code = '<CODE>'"
    ```
    No row means the code is wrong or the workbooks are stale. Stop.
 6. Nothing is already mapped:
-   ```sql
-   SELECT count(*) FROM rule_clause_group WHERE instrument_id = '<CODE>';
+   ```bash
+   psql_query "SELECT count(*) FROM rule_clause_group WHERE instrument_id = '<CODE>'"
    ```
    Non-zero means this is a re-run. Switch to `resume` semantics rather than
    deleting anything.
@@ -142,9 +152,6 @@ If the baseline is red, **stop and report**. Do not map on top of failing tests.
 With the baseline green, branch now, not at ship: `git checkout -b award/<code-lowercase>`.
 Everything from Step 1 onward happens on the branch, so main never carries a
 half-mapped award.
-
-For the raw SQL in the steps below, connect the way the service's own scripts
-do: `psql "${DATABASE_URL:-postgres://award:award@localhost:55432/award}"`.
 
 ## Step 1: Acquire the award's own words
 
