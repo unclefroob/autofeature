@@ -28,6 +28,16 @@ This raises confidence. It does not retire the risk. Independent agents can shar
 spot on an unusual legal construction, so a `high` confidence defect still goes to a human, it's just a
 much shorter list than "read every row."
 
+**One wrinkle, found only by running this against real MA000004 data, not by reasoning about it.**
+Several rows in a real table share one `clause_text` verbatim — 7 rows for cl 15.1's span, one per day;
+3 for cl 15.4's overtime thresholds, one per employment type; several allowances and roster rules too.
+Asking a blind reader to derive "the fields for THIS row" without saying which one is unanswerable — it
+would flag nearly every one of those rows as a disagreement for no real defect at all, purely from a
+one-in-several chance of guessing which row it was even being asked about. The fix isn't to tell the
+reader which row — that leaks the exact fact being verified. It's to have it enumerate every row the
+shared text describes, then match each shipped row to whichever derived entry agrees with it best. A
+shipped row nothing resembles is real evidence on its own. See "Grouping" below.
+
 ## Tables covered
 
 Eight tables where judgement about **when** and **how much** lives, i.e. where a day, a time, a priority
@@ -232,43 +242,116 @@ const SCHEMAS = {
   },
 }
 
-// ---------- Stage 1: two blind readers, in parallel, per row ----------
-function readerPrompt(row) {
-  const spec = SCHEMAS[row.tbl]
-  return `You are reading ONE clause of the ${AWARD} modern award, cited as "${row.clause}". You have ` +
+// ---------- Grouping: rows that share one clause_text share one legal sentence ----------
+//
+// Checked against real MA000004 data before this shipped: a table-shaped clause — cl 15.1's
+// span, cl 15.4's overtime thresholds, several allowances, roster rules, leave types — describes
+// SEVERAL rows in one passage. rule_span alone has 7 rows citing IDENTICAL text for cl 15.1, one
+// per day. Asking a blind reader to "derive the fields for THIS row" without saying which is
+// unanswerable — it has a 1-in-7 chance of even naming the right day, which would flag every
+// span row as a disagreement for no real defect at all.
+//
+// The fix is not to tell the reader which row it's checking — that would leak exactly the fact
+// being verified. It's to ask it to enumerate EVERY row the shared text describes, then match
+// each shipped row to whichever derived entry agrees with it best. A shipped row with no good
+// match — nothing in what the reader derived resembles it — is real evidence on its own.
+const groupKey = (row) => `${row.tbl}::${row.clauseText}`
+
+function buildGroups(rows) {
+  const groups = new Map()
+  for (const row of rows) {
+    const k = groupKey(row)
+    if (!groups.has(k)) groups.set(k, { tbl: row.tbl, clause: row.clause, clauseText: row.clauseText, rows: [] })
+    groups.get(k).rows.push(row)
+  }
+  return [...groups.values()]
+}
+
+// ---------- Stage 1 (per GROUP): two blind readers, in parallel ----------
+function readerPromptSingle(group, spec) {
+  return `You are reading ONE clause of the ${AWARD} modern award, cited as "${group.clause}". You have ` +
     `not seen how anyone else modelled it — derive the structured fields from the words alone.\n\n` +
-    `CLAUSE TEXT (verbatim, the award's own words):\n"""\n${row.clauseText}\n"""\n\n` +
+    `CLAUSE TEXT (verbatim, the award's own words):\n"""\n${group.clauseText}\n"""\n\n` +
     `Fields to derive: ${spec.fields}\n\n` +
     `If the clause text alone cannot settle a field, say so honestly in "reasoning" and give your best ` +
     `reading rather than a guess dressed as certainty. Days of week: 0=Sunday..6=Saturday, matching the ` +
-    `Fair Work convention. Do not infer anything the text does not say.`
+    `Fair Work convention. Times as 24-hour "HH:MM" (e.g. "21:00", never "9.00 pm" or "21:00:00"). Do ` +
+    `not infer anything the text does not say.`
 }
 
-async function deriveTwice(row) {
-  const spec = SCHEMAS[row.tbl]
-  if (!spec) return { row, skipped: true, reason: `no schema for ${row.tbl} yet` }
+function readerPromptGroup(group, spec) {
+  return `You are reading ONE clause of the ${AWARD} modern award, cited as "${group.clause}". This ` +
+    `clause describes MORE THAN ONE structured rule in a single passage — a table, a list of ` +
+    `employment types, a list of days, several named things of the same kind. Nobody is telling you ` +
+    `how many there are or which one to focus on. Enumerate EVERY distinct instance the text supports, ` +
+    `as an array — no more than the text justifies, no fewer. You have not seen how anyone else ` +
+    `modelled this.\n\n` +
+    `CLAUSE TEXT (verbatim, the award's own words):\n"""\n${group.clauseText}\n"""\n\n` +
+    `Fields to derive PER INSTANCE: ${spec.fields}\n\n` +
+    `If nothing in the text distinguishes between instances along some dimension — a general rule ` +
+    `stated once rather than spelled out per day or per type — that means the SAME values repeat across ` +
+    `every instance of that dimension. Describe every instance the record needs (all seven days if the ` +
+    `dimension is day of week, all three employment types if it is that), not fewer just because the ` +
+    `text was written generally rather than as a table.\n\n` +
+    `Days of week: 0=Sunday..6=Saturday. Times as 24-hour "HH:MM" (e.g. "21:00", never "9.00 pm" or ` +
+    `"21:00:00"). Do not infer anything the text does not say.`
+}
+
+async function deriveGroup(group) {
+  const spec = SCHEMAS[group.tbl]
+  if (!spec) return { group, skipped: true, reason: `no schema for ${group.tbl} yet` }
+  const many = group.rows.length > 1
+  const schema = many
+    ? { type: 'object', required: ['items'],
+        properties: { items: { type: 'array', items: spec.schema }, reasoning: { type: 'string' } } }
+    : spec.schema
+  const prompt = many ? readerPromptGroup(group, spec) : readerPromptSingle(group, spec)
   const [a, b] = await parallel([
-    () => agent(readerPrompt(row), { label: `read:${row.tbl}:${row.clause}:A`, phase: 'Re-derive', schema: spec.schema, model: 'sonnet' }),
-    () => agent(readerPrompt(row), { label: `read:${row.tbl}:${row.clause}:B`, phase: 'Re-derive', schema: spec.schema, model: 'sonnet' }),
+    () => agent(prompt, { label: `read:${group.tbl}:${group.clause}:A`, phase: 'Re-derive', schema, model: 'sonnet' }),
+    () => agent(prompt, { label: `read:${group.tbl}:${group.clause}:B`, phase: 'Re-derive', schema, model: 'sonnet' }),
   ])
-  // parallel() resolves a failed/skipped thunk to null rather than throwing —
-  // a reader that died is not evidence of anything and must not be diffed
-  // against, or the diff stage crashes dereferencing it.
-  if (!a || !b) return { row, skipped: true, reason: 'a reader failed or was skipped' }
-  return { row, a, b }
+  // parallel() resolves a failed/skipped thunk to null rather than throwing — a reader that died
+  // is not evidence of anything and must not be diffed against, or the next stage crashes.
+  if (!a || !b) return { group, skipped: true, reason: 'a reader failed or was skipped' }
+  return { group, arrA: many ? a.items : [a], arrB: many ? b.items : [b] }
 }
 
-// ---------- Stage 2: plain diff, no agent — shipped vs each reader, three-way ----------
-function normalize(v) {
+// ---------- Stage 2 (per ROW, looked up by group): match, then diff, three-way ----------
+//
+// Postgres serialises `time` as "07:00:00"; a model asked for "the correct time" writes "07:00",
+// "7:00 am", "7am" — anything a human would. Plain string equality would flag every time field on
+// every row as a disagreement for a formatting difference, not a substantive one, which defeats
+// the entire point (found on a dry run against real data before this shipped). Parse anything
+// recognisable to minutes-since-midnight; fall back to string equality only for what doesn't parse.
+const TIME_RE = /^(\d{1,2})(?::(\d{2}))?(?::\d{2})?\s*(am|pm)?$/i
+function toMinutes(v) {
+  if (typeof v !== 'string') return null
+  const m = v.trim().match(TIME_RE)
+  if (!m) return null
+  let h = parseInt(m[1], 10)
+  const min = m[2] ? parseInt(m[2], 10) : 0
+  const suffix = m[3] ? m[3].toLowerCase() : null
+  if (suffix === 'pm' && h < 12) h += 12
+  if (suffix === 'am' && h === 12) h = 0
+  // 24:00 is Postgres's own end-of-day boundary (a shift running to local midnight), distinct
+  // from 00:00 — found on the same dry run, when a genuinely correct shiftworker span ("24:00:00"
+  // shipped, "24:00" derived) failed to match purely because 24 is one past a normal clock hour.
+  if (h === 24 && min === 0) return 24 * 60
+  if (h > 23 || min > 59) return null
+  return h * 60 + min
+}
+
+// field-scoped deliberately: only the columns known to hold a clock time get parsed as one. A
+// purely-numeric enum value elsewhere must never be silently reinterpreted as a time in disguise.
+const TIME_FIELDS = new Set(['time_from', 'time_to'])
+function normalize(v, field) {
   if (Array.isArray(v)) return JSON.stringify([...v].sort())
   if (v === undefined) return null
+  if (TIME_FIELDS.has(field) && typeof v === 'string') {
+    const mins = toMinutes(v)
+    if (mins !== null) return `t:${mins}`
+  }
   return v
-}
-
-function diffField(field, shipped, a, b) {
-  const s = normalize(shipped), av = normalize(a), bv = normalize(b)
-  if (s === av && s === bv) return null
-  return { field, shipped, readerA: a, readerB: b }
 }
 
 const FIELD_MAP = {
@@ -290,13 +373,44 @@ const FIELD_MAP = {
   rule_break_placement: [['kind', 'kind'], ['value', 'value']],
 }
 
-function diffRow(derived) {
-  if (derived.skipped) return derived
-  const { row, a, b } = derived
+// How many of a candidate's fields disagree with the shipped row — the matching score. Matching
+// on field agreement rather than on a given identity is what keeps this blind: the candidate that
+// looks most like the shipped row wins, and if NOTHING looks like it, that is itself the finding.
+function mismatchCount(tbl, shippedPredicate, candidate) {
+  return FIELD_MAP[tbl].filter(([readerKey, dbKey]) =>
+    normalize(shippedPredicate[dbKey], dbKey) !== normalize(candidate[readerKey], dbKey)
+  ).length
+}
+
+function bestMatch(tbl, shippedPredicate, candidates) {
+  if (!candidates || candidates.length === 0) return null
+  return candidates.reduce((best, c) =>
+    mismatchCount(tbl, shippedPredicate, c) < mismatchCount(tbl, shippedPredicate, best) ? c : best
+  )
+}
+
+function diffField(field, shipped, a, b) {
+  const s = normalize(shipped, field), av = normalize(a, field), bv = normalize(b, field)
+  if (s === av && s === bv) return null
+  return { field, shipped, readerA: a, readerB: b }
+}
+
+function diffRow(row, groupResultsByKey) {
+  const groupResult = groupResultsByKey.get(groupKey(row))
+  if (!groupResult || groupResult.skipped) return { row, skipped: true, reason: groupResult ? groupResult.reason : 'no group result' }
+
+  const matchedA = bestMatch(row.tbl, row.predicate, groupResult.arrA)
+  const matchedB = bestMatch(row.tbl, row.predicate, groupResult.arrB)
+  if (!matchedA || !matchedB) {
+    return { row, flagged: true,
+      diffs: [{ field: '*', shipped: row.predicate, readerA: matchedA, readerB: matchedB,
+        note: 'a reader returned nothing resembling this row at all' }] }
+  }
+
   const diffs = FIELD_MAP[row.tbl]
-    .map(([readerKey, dbKey]) => diffField(dbKey, row.predicate[dbKey], a[readerKey], b[readerKey]))
+    .map(([readerKey, dbKey]) => diffField(dbKey, row.predicate[dbKey], matchedA[readerKey], matchedB[readerKey]))
     .filter(Boolean)
-  return { row, a, b, diffs, flagged: diffs.length > 0 }
+  return { row, a: matchedA, b: matchedB, diffs, flagged: diffs.length > 0 }
 }
 
 // ---------- Stage 3: adversarial skeptic, ONLY on flagged rows ----------
@@ -327,7 +441,14 @@ async function refute(diffed) {
   return { ...diffed, verdict }
 }
 
-const results = await pipeline(ROWS, deriveTwice, diffRow, refute)
+// One derivation per GROUP (a shared clause_text is read once, not once per row that cites it —
+// asking the same table-shaped clause 7 times would either waste 6 calls or, worse, get 7
+// different arrays and make the matching arbitrary). One diff+refute per original ROW.
+const groups = buildGroups(ROWS)
+const groupResults = await pipeline(groups, deriveGroup)
+const groupResultsByKey = new Map(groupResults.map((r, i) => [groupKey(groups[i].rows[0]), r]))
+
+const results = await pipeline(ROWS, (row) => diffRow(row, groupResultsByKey), refute)
 
 const skipped = results.filter((r) => r && r.skipped)
 if (skipped.length) log(`${skipped.length} row(s) had no schema yet and were not verified: ${[...new Set(skipped.map(s => s.reason))].join('; ')}`)

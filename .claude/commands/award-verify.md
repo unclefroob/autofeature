@@ -166,8 +166,10 @@ Workflow({
 })
 ```
 
-This is genuinely 2–3 agents per row (two blind readers always, a skeptic only where they disagree with
-the shipped row), so cost scales with row count. For a first run on a whole award, say so before firing
+Cost scales with **distinct `(table, clause_text)` groups, not row count** — two blind readers per group
+always, a skeptic only where a shipped row disagrees. Rows sharing one clause_text (a span table, an
+overtime-threshold table) collapse to one group, so this is often far cheaper than "two per row" implies.
+For a first run on a whole award, say so before firing
 it — this is real spend, not a cheap lint pass. For a `clauses:`-scoped re-check after a variation, it's
 small enough to run without asking.
 
