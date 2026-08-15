@@ -119,6 +119,39 @@ Credentials are never logged, written to the report, or committed. Failures can 
 
 ---
 
+## Mapping an award — `/autofeature:award-map`
+
+Maps one Australian modern award into `rosterio-compliance-service` so it can be priced and
+roster-checked, with every rule citing a clause and mechanically checkable against the award's own
+words.
+
+```
+/autofeature:award-map MA000003
+/autofeature:award-map MA000009 mode:automated
+/autofeature:award-map MA000003 resume
+```
+
+It is **enumeration-first**, and the ordering is the whole point. Mapping MA000004 took 95 commits
+because the axes along which gaps could hide were discovered one at a time, while the modelling was in
+flight — a clause marked `partial` hid the late-trading span, and a clause marked `modelled` hid time
+off instead of overtime pay. A word cannot bound a list; a count can.
+
+So this command transcribes the clause list and per-clause sub-clause counts from the Commission's
+consolidated PDF **first**, triages every clause against the closed rule vocabulary **second**, and
+stands up the eight closure axes **before** authoring anything. Their first run reports almost
+everything open, and that output is the work list — a denominator fixed before anyone reads the award
+for rules, which every later file burns down.
+
+Done is `npm run closure -- <CODE>` returning zero on all eight axes. Not an opinion, and not an
+agent's answer to "are there gaps?", which is the question that used to have a new answer every time
+it was asked.
+
+Two checkpoints stop the run even in `mode:automated` — the transcription and the triage — because
+they are the only two steps carrying judgement. Reads `awards/gap-axes.md`, `awards/rule-tables.md`
+and `awards/service-conventions.md`.
+
+---
+
 ## File Structure
 
 ```
@@ -136,8 +169,13 @@ autofeature/
 │   ├── feature-plan.md
 │   ├── feature-review.md
 │   └── feature-ship.md
+├── awards/                        ← award-mapping domain reference
+│   ├── gap-axes.md                ← the eight closure axes; how a mapping finishes
+│   ├── rule-tables.md             ← what the rule_* vocabulary can and cannot say
+│   └── service-conventions.md     ← rosterio-compliance-service conventions
 └── .claude/commands/
-    └── autofeature.md             ← the Claude Code command
+    ├── autofeature.md             ← the Claude Code command
+    └── award-map.md               ← award mapping
 ```
 
 **Rule:** Edit files in `adapted/` and `.claude/commands/`. Never edit `source/` files — they're the baseline for tracking what changed.
