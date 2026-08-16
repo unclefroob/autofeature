@@ -99,6 +99,41 @@ SELECT * FROM (
 ) x WHERE length(clause_text) < 60 ORDER BY length(clause_text);
 ```
 
+**A residual on a structured clause that names no limb.** Axis 8 reports this and
+it is worth restating here, because for an award already shipped it is the check
+most likely to be non-empty. A clause whose own text runs `(a)`, `(b)`, `(c)` and
+whose note says only "needs the agreed pattern" cannot be told from a clause with
+one limb of six open — and the limbs are exactly where an under-payment hides,
+one level below where axis 2 stops looking.
+
+```sql
+SELECT rc.clause,
+       (SELECT count(*) FROM regexp_matches(
+          regexp_replace(fc.text,'\s+',' ','g'),'\((([a-z])|([ivx]{1,4}))\)','g')) AS paragraphs,
+       left(rc.note, 100)
+  FROM rule_coverage rc
+  JOIN instrument i ON i.id = rc.instrument_id
+  JOIN fwc_clause fc ON fc.award_code = i.root_award_code AND fc.clause = rc.clause
+ WHERE rc.instrument_id = '<CODE>'
+   AND (rc.status = 'partial' OR rc.note LIKE 'Pending:%')
+   AND rc.note !~ '\((([a-z])|([ivx]{1,4}))\)|limb'
+   AND (SELECT count(*) FROM regexp_matches(
+          regexp_replace(fc.text,'\s+',' ','g'),'\((([a-z])|([ivx]{1,4}))\)','g')) > 2
+ ORDER BY 2 DESC;
+```
+
+**The award's committed snapshot is current.**
+
+```bash
+npm run snapshot -- <CODE> -- --check
+```
+
+An award shipped before `test/snapshot.test.ts` existed may have no fixture at
+all, in which case one is written and there is nothing to compare — say so
+plainly rather than reporting a pass. Where a fixture does exist and the check
+fails, the award's priced output has moved since somebody last looked, and this
+audit is how that gets found.
+
 **An axis examining an empty universe.** `closure` prints these; repeat them here,
 because a zero over nothing is the failure mode this whole method keeps finding
 and it must never be reported as a pass.

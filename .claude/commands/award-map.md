@@ -160,6 +160,30 @@ Then, in order, stopping on the first failure:
 3. `npm run verify` passes.
 4. `npm test` passes. Record the test count in the state file. It is the baseline
    the final run is compared against.
+
+4b. **Snapshot every award already mapped**, and commit the result before a line
+   of the new award is written:
+
+   ```bash
+   for a in $(npx tsx -e 'import{awardsWithEnumerations}from"./src/awards/enumerations";console.log(awardsWithEnumerations().join(" "))'); do
+     npm run snapshot -- "$a"
+   done
+   git status --porcelain test/fixtures/snapshot-*.json   # expect empty
+   ```
+
+   A snapshot is every priced answer an award gives across the cross-product of
+   classification, employment type, age and shift shape — the combinations
+   nobody wrote a test for. `test/snapshot.test.ts` compares against it on every
+   run.
+
+   Output that moves HERE, before any new work, is not the new award's doing. It
+   means the committed snapshot was stale or the local database differs from the
+   one it was written against, and either has to be resolved now, because from
+   this point on the snapshot is the only thing that can tell "the new award
+   changed the old one" from "it was already like that".
+
+   Non-empty output at this step is a Step 0 failure like any other. Do not
+   regenerate to make it quiet.
 5. The award exists in the extract:
    ```bash
    psql_query "SELECT award_code, name, version_number FROM fwc_award WHERE award_code = '<CODE>'"
@@ -525,6 +549,38 @@ npm run rules:load && npm run verify && npm run closure -- <CODE> \
 Every axis zero, retail still accounted, the suite green and no fewer tests than
 the Step 0 baseline. **Anything else is not done**, and the report says which
 axis is open rather than describing the run as nearly finished.
+
+### The already-shipped awards must price exactly what they priced at Step 0
+
+`npm test` includes `test/snapshot.test.ts`, which re-prices the cross-product
+for every mapped award and compares it against the fixtures committed at Step
+0.4b. A failure there is not the new award's tests failing — it is the new award
+having changed what an award **already in production** tells an employer.
+
+That is the failure mode the rest of this pipeline cannot see. Every other check
+here is scoped to the award being mapped: the axes enumerate its clauses, the
+scenario suite prices its shifts, `award-verify` re-derives its predicates. None
+of them look at the other award, and the other award's own tests only cover the
+combinations somebody thought to write down. A mapping run touches shared
+things — the engine, the schema, the closed vocabularies, the loaders — and the
+combination that moves is, by construction, the one nobody asserted.
+
+**Treat every changed line as a defect until shown otherwise.** For each one,
+name the shared change that caused it and say whether the old answer or the new
+one is right:
+
+- **The old answer was wrong and the new award's work fixed it.** Legitimate.
+  Regenerate the fixture, and say so in the commit and in the review pack — a
+  silently corrected figure is a figure somebody was paid on.
+- **A rate rise or a variation landed in the extract.** Legitimate, and it should
+  have moved at Step 0.4b rather than here. Resolve why it did not.
+- **Anything else.** A regression in a live award. Fix it before the checkpoint.
+
+The one thing never permitted is regenerating the fixture to make the suite
+quiet. The diff prints every changed combination with its before and after
+precisely so it can be read rather than counted, and a snapshot regenerated
+without reading it is worse than no snapshot, because it launders the change
+into the baseline.
 
 **`closure` now exits 1 while any `Pending:` remains, so the chain above stops
 here on an unimplemented award. That is the gate working, not a failure of the

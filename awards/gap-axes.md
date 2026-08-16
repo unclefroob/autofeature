@@ -147,6 +147,34 @@ Which channel carries a `Pending:`, and what to do when none of them can, is
 `data-requirements.md`. A backlog nobody can total is the thing that let
 MA000003 ship 114 items behind eight green zeroes.
 
+**And it must name the limb.** Axis 2 itemises to the sub-clause because that is
+where the award numbers things, and then it stops. The award does not: cl 20.2
+runs `(a)(i)`, `(a)(ii)`, `(a)(iii)`, `(b)`, `(c)`, `(d)`, and all six sit in one
+coverage row. That is the cl 21.3 shape one level further down, and it is where
+the under-paying gaps actually turn out to live.
+
+Enumerating every paragraph is the wrong fix. Retail has 584 of them against 256
+coverage rows, and a row each would bury the ledger in prose that is already
+inside a modelled rule. The targeted fix is that a residual on a clause **with
+internal structure** has to say which limb it is missing:
+
+> `Pending:` cl 20.2 — the 38-hour and 11-hour limbs are modelled. The
+> five-days-in-a-week limb and the three limbs keyed to rostered start and finish
+> times need the agreed pattern.
+
+against the version that passes every other check and says nothing:
+
+> `Pending:` cl 20.2 — needs the agreed pattern.
+
+The second cannot be scheduled, cannot be reviewed, and cannot be told from a
+clause where one limb of six is open. The paragraph markers come from the
+clause's own stored text, so this costs no second transcription and cannot drift
+from the award.
+
+It discriminates, which is what every check here has to earn before it is worth
+running: the award authored carefully had 5 such clauses and all 5 named their
+limbs; the award authored fast had 35 and 1 did.
+
 ## Accounted is not implemented, and "closed" hid the difference
 
 The single most expensive lesson from mapping the second award, and it is a flaw
@@ -362,3 +390,30 @@ Two things answer it instead, and they are deliberately not the same mechanism:
 
 Both raise confidence. Neither is a proof, and the closure table should never be
 presented as one — see the sign-off gate at Step 8 of `award-map.md`.
+
+### And none of the three looks at the OTHER award
+
+Every mechanism above is scoped to the award being mapped. The axes enumerate
+its clauses, the verify workflow re-derives its predicates, the scenario suite
+prices its shifts. The award already in production — the one quoting real money
+to real employers — is not in any of their universes.
+
+Its own tests do not close that gap either, because they assert what somebody
+thought to assert. A mapping run touches shared things: the engine, the schema,
+the closed vocabularies, the loaders. Adding a classification predicate to
+`rule_condition` for one award changes a column every query for the other one
+reads. What moves under that is, by construction, the combination nobody wrote
+an assertion for.
+
+**`test/snapshot.test.ts`** answers it, and it is a different question again:
+not "is this answer right" but "has this answer moved". It prices the whole
+cross-product per award — classification × employment type × age × shift shape,
+down to the segment, with refusals recorded as answers because an award that
+starts pricing what it used to refuse is the bigger regression — and diffs
+against a fixture committed before the mapping began.
+
+It cannot say an answer is correct; a wrong answer snapshots as cleanly as a
+right one. It says nothing changed without somebody deciding it should, which no
+amount of careful assertion-writing scales to. Step 0.4b writes it, Step 8 reads
+it, and the rule at both ends is that the diff gets read rather than
+regenerated.
