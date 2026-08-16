@@ -25,6 +25,25 @@ by hand. A variation that changes wording is caught here. A variation that adds 
 condition is only caught if someone separately re-downloads the workbooks, which this command cannot do
 and will not silently assume happened — see Step 2b.
 
+## Missing information is a design task (always active)
+
+"We don't hold that data" is the beginning of the work, not the end of it. When a
+clause cannot be modelled, a rule cannot be checked or a finding cannot be
+answered because a fact is not captured, **design the capture**: which existing
+channel carries it, under what key and type, who answers it and when.
+
+This service already has two channels and the product renders both — the
+`employee-facts` list a Staff form fills in, and the `RequiredInput` prompts a
+finding raises. Check those first. Only where neither fits do you specify a new
+record, and then specify it concretely enough to build: the model, the field, the
+screen.
+
+The one legitimate stop is a fact that cannot exist for anybody — a judgement, an
+intention, something outside any system's reach. *Was this agreement genuine* is
+that. *We never added the field* is not, and filing the second under the first is
+how a finite backlog stops being finite.
+
+
 ## Step 1: Resolve and snapshot what's currently stored
 
 ```bash

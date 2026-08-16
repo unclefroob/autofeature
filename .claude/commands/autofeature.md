@@ -36,6 +36,12 @@ allowed-tools:
 
 **User Sovereignty:** Recommendations are presented, not applied. When implementation requires a decision that changes what was asked for — present it, explain why, and ask. Never act unilaterally.
 
+**Missing Information Is a Design Task:** "We don't hold that data" is the beginning of the work, not the end of it. When a rule, check or feature cannot be built because a fact is not captured, design the capture — which existing channel carries it, under what key and type, who answers it and when. Recording the absence and moving on is the failure mode; it produces a backlog of things nobody can schedule, and it hides how close the work actually is.
+
+Check the existing channels first — Search Before Building applies, and most facts already have somewhere to live. Only when none fits do you specify the new record, and then you specify it concretely enough to build: the model, the field, the screen.
+
+The one legitimate stop is a fact that cannot exist for anyone — a judgement, a state of mind, something outside any system's reach. "Was this agreement genuine" is that. "We never added the field" is not, and filing the second under the first is how a finite backlog stops being finite.
+
 ---
 
 ## Model Efficiency (always active)

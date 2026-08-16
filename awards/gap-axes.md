@@ -131,15 +131,21 @@ Each one must begin with one of two words:
 
 - **`Pending:`** solvable later, usually by collecting a fact the product does
   not yet hold. This is the backlog, and it is finite and listed.
+
+  **It must carry the design for collecting it.** "Needs a fact we don't hold" is
+  not a disposition, it is the absence of one. Say which existing channel carries
+  the fact and under what key, or — where neither fits — which model, field and
+  screen have to exist. A `Pending:` that does not say what to build is a
+  clause nobody can schedule, and 114 of those is not a backlog, it is a list of
+  places somebody stopped.
 - **`By design:`** correctly ends at an assertion, an evidence contract, or the
   boundary of what any rostering system can know. Closing one would mean
   pretending to verify a judgement or a fact held outside the system, which is
   worse than the gap.
 
-**Every `Pending:` must name the fact that is blocking it**, in the structured
-form `data-requirements.md` defines. A backlog item that says "not modelled yet"
-is not a backlog item, it is a shrug — and a backlog nobody can total is the
-thing that let MA000003 ship 114 of them behind eight green zeroes.
+Which channel carries a `Pending:`, and what to do when none of them can, is
+`data-requirements.md`. A backlog nobody can total is the thing that let
+MA000003 ship 114 items behind eight green zeroes.
 
 ## Accounted is not implemented, and "closed" hid the difference
 

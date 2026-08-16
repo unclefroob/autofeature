@@ -128,3 +128,26 @@ Together: search first, then build the complete version of the right thing.
 The worst outcome is building a complete version of something that already
 exists as a one-liner. The best outcome is building a complete version of
 something nobody has thought of yet.
+
+
+## Missing information is a design task, not an excuse
+
+Added after an award mapping recorded 114 clauses as "pending, needs a fact we
+don't hold" and stopped there. Every one of those was a build item nobody could
+schedule, because none of them said what to build.
+
+When something cannot be modelled for want of a fact:
+
+1. **Name the fact.** Not "needs more data" — the specific thing, in the words of
+   whoever would answer it.
+2. **Name the channel that carries it.** Check what already exists first; a
+   product that asks users for facts almost always has somewhere to put a new
+   one, and inventing a parallel mechanism is the more expensive mistake.
+3. **If nothing fits, specify the record.** Which model, which field, which
+   screen. Concretely enough that someone can pick it up and build it.
+
+The absence of a fact is a *design* problem with an answer, not a boundary. The
+only real boundary is a fact that cannot exist for anybody — a judgement, an
+intention, something outside any system's reach. Those are worth naming as such,
+precisely so they stay distinguishable from the things that are simply not built
+yet.
