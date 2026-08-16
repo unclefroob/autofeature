@@ -71,8 +71,18 @@ SELECT clause, left(note, 120) FROM rule_coverage
 
 **A transcription too short to be verified against.** `verify.ts` check 9 asks
 whether the stored text *appears in* the award's text, which a fragment satisfies
-trivially. 60 characters is the bar; the award mapped most carefully has a
-minimum of 96 and the one mapped fastest had 25 rows under 40.
+trivially — `"below 0"` and `"in excess of"` both passed it.
+
+**This is a pre-flight for `award-verify`, not a verdict.** The real test is
+whether a blind reader can derive the predicate from the text alone, and only
+`award-verify` answers that — at a cost of tens of agents. Running this first is
+worth it because short transcriptions produced twelve false findings in one
+verification run, all of which vanished when the passages were lengthened.
+
+Expect false positives and do not treat them as defects. A junior band reading
+`"Under 16 years of age 40"` is 24 characters and completely sufficient: the band,
+the age and the percentage are all present. Read each hit; the question is whether
+the predicate is derivable from it, never whether it is long.
 
 ```sql
 SELECT * FROM (
@@ -87,14 +97,6 @@ SELECT * FROM (
   UNION ALL SELECT 'rule_junior_band', clauses, clause_text FROM rule_junior_band
    WHERE instrument_id='<CODE>' AND clause_text IS NOT NULL
 ) x WHERE length(clause_text) < 60 ORDER BY length(clause_text);
-```
-
-**A note too short to say anything.** Under 40 characters. `coverage.test.ts`
-already bans under 20; this is the softer bar, and a row near it is worth reading.
-
-```sql
-SELECT clause, status, note FROM rule_coverage
- WHERE instrument_id = '<CODE>' AND length(coalesce(note,'')) < 40 ORDER BY clause;
 ```
 
 **An axis examining an empty universe.** `closure` prints these; repeat them here,
@@ -123,27 +125,58 @@ Read each. *"Turns on whether the employee is eligible for a disability support
 pension, which is a fact held by Services Australia"* is the shape to look for:
 the fact exists, somebody knows it, and nothing stops the employer asserting it.
 
-**A note carrying several dispositions at once.** Over roughly 700 characters, or
-containing more than one ALL-CAPS section marker. One clause, one disposition —
-a note that says "this part is modelled, this part is the product's job, this part
-is out of scope" is three findings wearing one row, and none of the three can be
-counted.
+**A note carrying several dispositions at once.** One clause, one disposition. A
+note saying "this part is modelled, this part is the product's job, this part is
+out of scope" is three findings wearing one row, and none of the three can be
+counted — so the backlog total is wrong.
+
+Count the SECTION MARKERS, not the characters. Length was tried as the proxy and
+it does not work: the one genuinely conflated note happened to be the longest, but
+ten notes between 400 and 670 characters carry exactly one disposition each and
+are long because they are thorough. Thoroughness is not the defect.
 
 ```sql
-SELECT clause, status, length(note) FROM rule_coverage
- WHERE instrument_id = '<CODE>' AND status <> 'modelled' AND length(note) > 700
- ORDER BY length(note) DESC;
+SELECT clause, status,
+       (length(note)-length(replace(note,'MODELLED','')))/8
+     + (length(note)-length(replace(note,'OUT OF SCOPE','')))/12
+     + (length(note)-length(replace(note,'THE PRODUCT','')))/11 AS markers
+  FROM rule_coverage
+ WHERE instrument_id = '<CODE>' AND status <> 'modelled'
+ HAVING (length(note)-length(replace(note,'MODELLED','')))/8
+      + (length(note)-length(replace(note,'OUT OF SCOPE','')))/12
+      + (length(note)-length(replace(note,'THE PRODUCT','')))/11 > 1
+ ORDER BY markers DESC;
 ```
+
+Extend the marker list as new ones appear; it is a smell detector, not a grammar.
 
 **A note that could have been written about any award.** No clause number, no
 figure, no term from this award's own vocabulary. Read the shortest twenty.
 
-### What NOT to flag
+### Checks that were tried and rejected
 
-A `partial` row **should** say which part is modelled and which is not. A regex
-for "is modelled" on a non-modelled row hits that correct pattern far more often
-than a real mismatch — it was tried, it returned eleven hits on one award and
-every one was right. Do not add it back.
+Three, all rejected for the same reason: **they flagged correct behaviour.** They
+are recorded here so nobody adds them back, and because the pattern is worth
+recognising — every one used a cheap proxy for a property that is not cheap.
+
+**"is modelled" on a non-modelled row.** Eleven hits on one award, all correct: a
+`partial` row *should* say which part is modelled.
+
+**A note under 40 characters.** Twenty-five hits across two awards, twenty-four
+correct. `"By design: names the award"` is a better note for a title clause than
+two hundred words would be, and `"The daily overtime threshold."` is the whole
+truth about cl 13.5. Brevity is usually the right answer. `coverage.test.ts`
+already bans notes under 20 characters, which is the real floor and catches the
+genuine shrug.
+
+**A residual note over 700 characters.** One true hit and ten false ones. Length
+does not predict conflation — the notes between 400 and 670 characters each carry
+a single disposition and are long because they are thorough.
+
+The tell they share: a threshold on a count, standing in for a judgement about
+meaning. Before adding a check to this file, run it against every mapped award
+and read what it catches. If most hits are correct behaviour, the check is wrong,
+however reasonable it sounded.
 
 ## Step 4: Report
 
