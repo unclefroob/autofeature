@@ -613,6 +613,16 @@ IMPLEMENTED is the outcome. ACCOUNTED is a step — it tells you the backlog you
 are holding is complete rather than a floor, which is worth knowing and is not a
 result. `gap-axes.md` has the reasoning.
 
+**And IMPLEMENTED is only the COVERAGE verdict.** `closure` prints a second one,
+correctness, read from `verification_run`, and it says VERIFIED with its date and
+scope, STALE, or NEVER VERIFIED. Step 7.5 writes that record; if Step 7.5 was
+skipped, the review pack leads with `NEVER VERIFIED` and the sign-off is a
+decision to ship modelling nobody has independently re-read.
+
+That is a legitimate decision and it is not the default. It is also why the exit
+code is non-zero on an implemented-but-unverified award: zero is the strongest
+"done" this prints, and coverage alone has never earned it.
+
 Shipping an award that is accounted but not implemented is a legitimate decision
 — retail ran in production for months at `Pending: 1`. It is a **decision**,
 taken by a person, stated in one plain sentence at the top of the review pack:

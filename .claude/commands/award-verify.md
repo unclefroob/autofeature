@@ -213,6 +213,73 @@ If invoked standalone (not from `award-map`), append the findings to
 `.autofeature/awards/<CODE>-review.md` under a `## Semantic verification — <date>` heading rather than
 overwriting anything already there.
 
+## Step 5: Record the run, which is not optional
+
+```bash
+npm run verified -- <CODE> \
+  --rows <checked> --found <total defects> --real <confirmed after the skeptic pass> \
+  --tables <all | the tables: list you were given> \
+  [--clauses <the clauses: list you were given>] \
+  --report .autofeature/awards/<CODE>-review.md \
+  --note "<one sentence a person can act on>"
+```
+
+**This is the step that makes the verification visible to everything else.**
+Without it the result lives in a markdown file in a working directory, and
+`npm run closure` — the command everyone actually reads — has no way to know
+whether an award has ever been checked. It printed `IMPLEMENTED` identically for
+a verified award and a never-verified one, and `IMPLEMENTED` gets read as "done".
+
+That is the same failure three times over: `closed` meant *read*, `accounted`
+meant *the backlog is complete*, `implemented` means *nothing is unbuilt*. Each
+was taken for "done" by the next person to look, and each time the fix was to
+stop asking a word to carry what a record should. This is the record.
+
+`closure` now prints two verdicts, coverage and correctness, and the second is
+read from what this step writes:
+
+```
+  coverage      IMPLEMENTED — every clause read, every published rate
+                reachable, every rule quoting the award ...
+
+  correctness   VERIFIED 2026-08-16 — every predicate row, 38 rows,
+                17 finding(s) of which 2 real.
+```
+
+Three rules for writing it honestly:
+
+- **`--found` and `--real` are both required**, because the gap between them is
+  the useful number. One run reported 17 and 5 survived a second pass, of which
+  2 were real — the other twelve were short transcriptions rather than wrong
+  rules, and a record showing only "2" would hide that the run's first output
+  was mostly noise about its own inputs.
+- **`--tables` and `--clauses` record the SCOPE.** A run over `rule_roster`
+  alone is a real result and must never read as a whole-award verification. The
+  verdict quotes the scope back, so "verified" always says verified of what.
+- **Record it after the defects are fixed, not before.** The record fingerprints
+  the predicate rows as they stand when it is written; writing it first and then
+  fixing two rows leaves a record that describes rules nobody checked.
+
+### Staleness looks after itself
+
+The record hashes the predicate rows themselves — the days, times, thresholds,
+priorities and kinds this command actually read. Change one and the verdict
+becomes `STALE` on its own:
+
+```
+  correctness   STALE — verified 2026-08-16 over every predicate row (38 rows),
+                but the predicate rows have CHANGED since.
+```
+
+A commit hash was the obvious alternative and is the wrong one: it moves when
+anything in the repo moves, so every award would read stale after every unrelated
+change, and an alarm that always fires is one nobody reads.
+
+`clause_text` and `note` are deliberately **outside** the hash. Lengthening a
+transcription is exactly what this command asks for — twelve of one run's
+seventeen findings vanished when the passages were lengthened — so hashing them
+would mark an award stale for having acted on the report.
+
 ## What this is not
 
 It is a second, independent reading, not a proof. Two agents can share a blind spot on an unusual

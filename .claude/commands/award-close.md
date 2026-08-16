@@ -263,16 +263,22 @@ Required:
 - the suite green with no fewer tests than the Step 0 baseline
 - every snapshot clean, or every diff explained
 
+**Closing a backlog invalidates the verification it had.** Every clause built in
+Step 3 added predicate rows nobody has re-derived, so `closure`'s correctness
+verdict will read `STALE` (or `NEVER VERIFIED`) even where it read VERIFIED
+before this ran. That is the record working. Say it in the report and treat
+`/autofeature:award-verify` as the natural next command, scoped to the clauses
+this run touched if a full re-run is too much.
+
 Then the report, which is a decision for a person and not a summary:
 
 1. What this award now does that it did not.
 2. What it still does not, and which category each remaining item is in.
 3. Which other repo's work is now unblocked, or newly required.
-4. **What was not checked.** This command builds and guards against regression.
-   It does not re-derive a single predicate from the award's words — a rule
-   closed here can be wired to the wrong day of the week and pass everything
-   above. That is `/autofeature:award-verify`, and closing a backlog is a good
-   reason to run it.
+4. **What was not checked**, quoting `closure`'s correctness line verbatim. This
+   command builds and guards against regression. It does not re-derive a single
+   predicate from the award's words — a rule closed here can be wired to the
+   wrong day of the week and pass everything above.
 
 ---
 

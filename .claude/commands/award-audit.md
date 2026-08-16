@@ -46,9 +46,19 @@ is simply unmeasured against them, and the only way to know is to look.
 npm run closure -- <CODE>
 ```
 
-Report ACCOUNTED and IMPLEMENTED separately, and if the award is accounted but
-not implemented, lead with the `Pending:` count. Never report the first in words
-a reader could hear as the second.
+It prints two now, and **both go in the report**:
+
+- **coverage** — IMPLEMENTED, NOT IMPLEMENTED with the `Pending:` count, or NOT
+  ACCOUNTED. If the award is accounted but not implemented, lead with the count,
+  and never report accounted in words a reader could hear as implemented.
+- **correctness** — VERIFIED with its date and scope, STALE, or NEVER VERIFIED.
+  This is read from `verification_run`, so it is a fact rather than a
+  recollection.
+
+**An audit of an award that has never been verified is not a clean bill of
+health, however clean this command comes back.** Say so at the top, not in the
+closing caveat: everything below reads what was written *about* the award, and
+a rule can pass every check here while being wired to the wrong day of the week.
 
 ## Step 2: The mechanical checks
 

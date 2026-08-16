@@ -391,6 +391,34 @@ Two things answer it instead, and they are deliberately not the same mechanism:
 Both raise confidence. Neither is a proof, and the closure table should never be
 presented as one — see the sign-off gate at Step 8 of `award-map.md`.
 
+### And the result has to be a record, not a report
+
+Verification ran, and wrote its findings to a markdown file in a working
+directory. So `closure` — the command everyone actually reads — had no way to
+know whether an award had ever been checked, and printed `IMPLEMENTED` the same
+for a verified award and a never-verified one.
+
+`verification_run` holds it now, `award-verify`'s last step writes it, and
+`closure` prints two verdicts instead of one:
+
+```
+  coverage      IMPLEMENTED — ... nothing left that could be modelled and is not.
+  correctness   NEVER VERIFIED — 73 predicate row(s) have not been re-derived.
+```
+
+It hashes the predicate rows themselves rather than a commit, so it lapses to
+`STALE` when and only when the thing that was verified moves — a commit hash
+would mark every award stale on every unrelated change, and an alarm that always
+fires is one nobody reads. `clause_text` is outside the hash on purpose:
+lengthening a transcription is what a verification run ASKS for, and hashing it
+would mark an award stale for having acted on the report.
+
+This is the fourth time the same lesson has been paid for. `closed` meant read.
+`accounted` meant the backlog is complete. `implemented` means nothing is
+unbuilt. Each was taken for "done" by the next person to look. **When a verdict
+keeps being over-read, the fix is never a better word — it is a record the
+verdict has to consult.**
+
 ### And none of the three looks at the OTHER award
 
 Every mechanism above is scoped to the award being mapped. The axes enumerate
