@@ -1,108 +1,99 @@
 ---
 name: award-data-requirements
-purpose: What the product must capture before an award can be implemented, derived from the mapping rather than guessed by the frontend. Read at Step 6 and emitted at Step 8.
+purpose: Every `Pending:` names which existing channel will carry the fact it is waiting on. Read at Step 6, reported at Step 8. Introduces no new mechanism.
 status: CUSTOM
 ---
 
-# Data requirements — telling the product what the award needs
+# What a `Pending:` is waiting on
 
-## The gap this closes
+## Read this first: there is nothing to build
 
-The service can already answer *"what can you use?"* — `employeeFacts.ts` derives
-it from what is modelled, and its own header is candid about the limit:
+The service already has two channels for asking a human for a fact, both derived
+from what is modelled, both refusing to ask for anything the engine cannot then
+use, and both already rendered by the product:
 
-> *"the depth of the answer follows the depth of the modelling, and for an award
-> we have barely interpreted the honest answer is short."*
+| channel | shape | asked | rendered by |
+|---|---|---|---|
+| `employee-facts` | `{key, label, type, help, required, options?, clause?, onlyWhen?}` | once, about a person | `Staff.js` → `employment.awardFacts` |
+| `RequiredInput` | `{group, key, label, type, help, required}` | in the moment, on a finding | `RequiredInputs.jsx` via `AwardFindings.jsx` |
 
-Nothing can answer the other question: **"what would you need?"** That direction
-is not derivable from what is modelled, because the whole point is that it is
-about what is *not*. It has to be recorded at the moment a `Pending:` is written,
-by the person who just read the clause and knows exactly which fact was missing.
+`RequiredInput` already carries `group`, and the vocabulary is already in use:
+`apprenticeship`, `leave`, `otherWorkplace`, `pattern`, `recall`, `rosterPeriod`,
+`townshipTransfer`, `transport`.
 
-Without it, a mapping produces a backlog of 114 items in prose, and the team who
-would have to build the capture has no list, no grain, no counts and no order.
-That is what MA000003 shipped.
+**A mapping does not add a third channel, a table, or an endpoint.** An earlier
+draft of this file specified all three, and it was wrong on its face: the facts a
+`Pending:` is waiting on are precisely the ones the engine cannot use yet, so a
+runtime endpoint serving them would have no consumer by construction.
+`employeeFacts.ts`'s own header says as much — *"It never asks for something the
+engine cannot then use. Requesting an apprenticeship year for an award whose
+apprentices we cannot price would be theatre."*
 
 ## The rule
 
-**Every `Pending:` residual names the fact that blocks it.** A note reading
-"not modelled yet" is not a disposition, it is a shrug wearing the shape of one.
-
-Recorded in `rule_data_requirement`, one row per (clause, fact):
+**Every `Pending:` says which channel will carry its fact once the clause is
+modelled, and under what key.** One line, in the note, after the disposition:
 
 ```
-instrument_id   the award
-clause          the clause that cannot be implemented without this
-fact_key        stable key, e.g. 'agreed_pattern', 'rostered_start_finish'
-grain           employer | employee | employment | shift | roster | leave_request
-label           what a person would call it, for the capture UI
-why             the sentence from the clause that needs it
-blocks          what stays unavailable until it exists, in product terms
-errs            which direction the omission errs — see below
+Pending: <what is missing and why the clause needs it>.
+Carried by: employee-facts `expectedRetirementAge`
+Carried by: RequiredInput group `pattern`, key `agreedPatternId`
+Carried by: neither — <the record the product does not hold>
 ```
 
-`fact_key` is a **closed vocabulary per service**, not free text. Two clauses
-needing the same fact must use the same key, or the product builds the same
-capture twice and the count of remaining work is wrong in both directions.
+That is the whole addition. It costs a sentence per residual and turns a backlog
+of prose into something sortable, countable, and assignable to the team that owns
+the channel.
 
-## Grain is the field that decides who builds it
+## The three answers, and only the third is a product decision
 
-The most common way this goes wrong is recording a fact at the wrong level, so
-the capture lands in the wrong screen and gets built twice or not at all.
+**`employee-facts`** — a standing fact about the person or the engagement.
+Modelling the clause is the whole job; the fact appears in the Staff form the
+moment the engine can use it, with no interface change anywhere. This is the
+cheap case and most `Pending:` items are it.
 
-| grain | captured where | example |
-|---|---|---|
-| `employer` | account settings | is this a small business employer (s121) |
-| `employee` | the person's record | date of birth, first aid certificate |
-| `employment` | the engagement | the agreed pattern of days and times (cl 10.3) |
-| `shift` | the roster or the timesheet | rostered start and finish as distinct from worked |
-| `roster` | the roster period | the change history a consultation clause measures |
-| `leave_request` | the request | the reason a carer's leave absence is claimed for |
+**`RequiredInput`** — a fact about this shift, this roster period, this leave
+request. Modelling the clause is again the whole job: the rule returns
+`unevaluated` with the input attached rather than passing, and the existing
+component renders the prompt. Pick the `group` from the list above, or say plainly
+that a new group is needed and why the existing eight do not fit.
 
-A fact recorded at `employee` grain that is really `employment` grain is the
-mistake that produced a week of rework on Rosterio's shiftwork flags: two
-employments of the same person can differ, and a field on the person cannot say
-so.
+**`neither`** — the fact cannot be asked for at all, because the product does not
+hold the record it would attach to. **This is the only answer that implies work
+outside the compliance service**, and it is the reason the sentence is worth
+writing.
 
-## `errs` is not optional
+Two of MA000003's stand out, and both are already known:
 
-Every requirement states which way its absence errs, in the `notes` style the
-service already uses:
+- cl 20.2(b)–(d) measure hours against the **rostered** start and finish, as
+  distinct from the hours worked. `Shift` carries no rostered times. No prompt can
+  ask for this, because there is nowhere to put the answer.
+- cl 29 measures a **roster change**, which needs the roster's change history.
+  The compliance service is never given one.
 
-- **under-reports overtime** → under-pays → urgent, and say so
-- **over-reports a breach** → an employer sees a warning the award does not
-  support → annoying, not dangerous
-- **cannot answer at all** → the engine refuses, which is safe but useless
+Neither is a capture gap. Both are model gaps, and both under-report overtime or
+a breach until they are closed — which is why they are `Pending:` and not
+`By design:`.
 
-Ordering the backlog by anything other than this produces a list sorted by how
-easy each item looked.
+## What Step 8 reports
 
-## What it is FOR, and the trap in that
+The review pack groups the `Pending:` residuals by their answer and counts them:
 
-The output is a build list for the product team: the capture that has to exist
-before the award can be implemented. It is deliberately in the award's language
-and the product's, not SQL's.
+```
+carried by employee-facts     N   modelling only
+carried by RequiredInput      N   modelling only, group: ...
+carried by neither            N   needs a product change first — list them
+```
 
-**The trap:** a data requirement is not a promise that collecting the fact closes
-the clause. It says the clause cannot be implemented *without* it. Some clauses
-need the fact AND a judgement, and those are `By design:` even once the fact
-exists — a genuine agreement under cl 5.2 stays a judgement no matter how much
-of the agreement is captured. Recording such a clause as `Pending:` because a
-field would help is how a backlog stops being finite.
+The third number is the one a reader should see first. It is the only part of the
+backlog that cannot be burned down inside the compliance service, and an award
+whose remaining work is all in the first two categories is much closer to
+implemented than a count of 114 suggests.
 
-## Emitting it
+## The trap
 
-Step 8's review pack carries the requirements grouped by grain, with counts, so a
-reader sees "this award needs four things at employment grain and two at shift
-grain" rather than 114 lines of prose.
-
-Serve it as `/v1/instruments/:id/data-requirements`, the mirror of
-`/v1/instruments/:id/employee-facts`:
-
-- **employee-facts** — what the engine can use today. Shrinks to nothing for an
-  unmapped award, correctly.
-- **data-requirements** — what it would need to finish. Largest for an unmapped
-  award, and shrinks to nothing as the mapping completes.
-
-The two together are the whole picture, and `data-requirements` reaching empty is
-the same event as `Pending:` reaching zero. One number, two views.
+A `Pending:` is not a promise that capturing the fact closes the clause. Some
+clauses need the fact **and** a judgement, and those stay `By design:` even once
+the fact exists — a genuine agreement under cl 5.2 remains a judgement no matter
+how much of the agreement is stored. Recording such a clause as `Pending:`
+because a field would help is how a finite backlog stops being finite.

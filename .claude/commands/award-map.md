@@ -47,8 +47,8 @@ authoritative:**
 - `$AUTOFEATURE_HOME/awards/service-conventions.md` — the service being extended
 - `$AUTOFEATURE_HOME/awards/gap-axes.md` — the eight axes, and why ACCOUNTED and
   IMPLEMENTED are two verdicts rather than one
-- `$AUTOFEATURE_HOME/awards/data-requirements.md` — what the product must capture
-  before an award can be implemented, and how a `Pending:` names it
+- `$AUTOFEATURE_HOME/awards/data-requirements.md` — which existing channel each
+  `Pending:` is waiting on, and which ones need a product change first
 - `$AUTOFEATURE_HOME/awards/rule-tables.md` — what the vocabulary can and cannot say
 - `$AUTOFEATURE_HOME/awards/verify-workflow.md` — semantic verification, run at Step 7.5
 
@@ -363,12 +363,20 @@ Coverage files carry `source = 'award_text'` on every row somebody opened, a
 substantive note on every row, and no inherited statuses. The dispositions file
 goes last and stamps `Pending:` or `By design:` on every residual.
 
-**Every `Pending:` names the fact that blocks it**, as a row in
-`rule_data_requirement` — see `$AUTOFEATURE_HOME/awards/data-requirements.md` for
-the shape, the closed `fact_key` vocabulary, and why `grain` is the field that
-decides which team builds the capture. A `Pending:` with no named fact is not a
-backlog item, and a backlog nobody can total is what let one award ship 114 of
-them behind eight green zeroes.
+**Every `Pending:` says which existing channel will carry the fact it is waiting
+on** — `employee-facts`, a `RequiredInput` group, or neither. One sentence in the
+note. See `$AUTOFEATURE_HOME/awards/data-requirements.md`; it introduces no new
+mechanism, because the service already has both channels and the product already
+renders both.
+
+`neither` is the answer that matters: it means the product holds no record the
+fact could attach to, so the clause needs a product change and not just
+modelling. MA000003 has two — cl 20.2(b)–(d) needs rostered start and finish
+times `Shift` does not carry, and cl 29 needs a roster change history the service
+is never given.
+
+A `Pending:` with no such line is not a backlog item, and a backlog nobody can
+total is what let one award ship 114 of them behind eight green zeroes.
 
 A note is also not substantive if it is short. `verify.ts` check 9 asks whether
 the stored `clause_text` appears in the award's text, which a seven-character
@@ -464,11 +472,11 @@ award and not SQL:
   than the work supports
 - the coverage tally, and every `Pending:` and `By design:` residual with its
   reason
-- **the data requirements, grouped by grain with counts** — what the product must
-  capture before this award can be implemented, in the award's language and the
-  product's. This is the build list the frontend and API teams work from, and it
-  is the only artefact that turns a backlog of prose into scheduled work. See
-  `awards/data-requirements.md`
+- **the `Pending:` residuals grouped by what carries them, with counts** —
+  how many need modelling alone (`employee-facts` or a `RequiredInput` group)
+  against how many need a product change first (`neither`). The last number
+  goes first: it is the only part of the backlog that cannot be burned down
+  inside the compliance service. See `awards/data-requirements.md`
 - the refusal ledger from Step 4, meaning what this award cannot say and why
 - what is `derived` rather than `published`, with the clause that justifies it
 - source provenance: award text URL, retrieval date, compilation date, checksums,
