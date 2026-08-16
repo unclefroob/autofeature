@@ -195,6 +195,41 @@ let a reader hear the second.
 A new residual is classified at the moment it is written, never left for an audit
 to find.
 
+## A green check must say what it examined
+
+The single most repeated failure in this method's history, and it has now
+appeared in every layer of it.
+
+`verify.ts` reported `no text 150` — accurate, easy to read past, and it meant
+150 citations an employer sees were being checked against nothing. Closure axis 3
+joined a rule table and reported **0 open of 616** for an award with no rules at
+all. A citation-coverage query iterated a Record as an array, found zero keys, and
+printed `UNMAPPED: (none)`. A migration test seeded a row that silently failed a
+check constraint, so the `ALTER` it was proving ran against an empty table and
+succeeded. A test harness answered every model with a list of users, so a date
+guard discarded them and the assertion passed for the wrong reason.
+
+Every one of those printed a number that looked like success.
+
+**So a check reports the size of the universe it examined, next to the count of
+what failed, and a universe of zero is never a pass.** `closure` prints an
+`examined` column and names any axis whose universe was empty. Anything that
+gates a step does the same.
+
+Two corollaries worth stating because both cost time here:
+
+- **A universe defined by the thing being checked is not a universe.** Axis 3
+  reported zero because it joined to `rule_clause_group`; the fix was to stop
+  joining. Any check that narrows its own input by the artefact under test can
+  only ever confirm what is already there.
+- **A clean probe is a claim about your query too.** `CREATE TABLE $t` missed
+  `CREATE TABLE IF NOT EXISTS` and reported two tables unregistered that were
+  registered. A search of `rules-load.sh` for a table name missed the file being
+  listed by *filename*. A reachability query read `fwc_penalty.rate` where the
+  column that mattered was `penalty_calculated_value`, and returned a reassuring
+  zero across every award. Before reporting a finding from a query, check the
+  query can find the thing it says is absent.
+
 ## The enumeration manifest
 
 Axes 1 and 2 are the only ones whose universe cannot be derived mechanically.

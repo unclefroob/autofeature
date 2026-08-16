@@ -38,6 +38,27 @@ reader which row — that leaks the exact fact being verified. It's to have it e
 shared text describes, then match each shipped row to whichever derived entry agrees with it best. A
 shipped row nothing resembles is real evidence on its own. See "Grouping" below.
 
+## A verdict that claims behaviour must cite the code
+
+The skeptic is briefed to argue the shipped row is wrong, and a skeptic arguing
+well will reach for consequences: *this trigger fires once per shift and then
+bills every hour of it, so it is a live overpayment*. That sentence was returned
+at `confidence: high` against a row that was correct, and the mechanism it
+described does not exist — the engine takes the quantity from the caller, and its
+own comment says so.
+
+An agent given a clause and a predicate has read neither the engine nor the
+sibling award. It can say what the words mean. It cannot say what the code does
+unless it opened the code.
+
+**So a verdict asserting behaviour — "this overpays", "this never fires", "this
+is unreachable" — must quote the file and line it read.** A behavioural claim with
+no citation is an argument about a mechanism the agent imagined, and it is the
+most persuasive kind of wrong answer this workflow produces.
+
+This is also why `high` confidence blocks rather than auto-fixes. Three of the
+first run's sixteen `high` findings were overturned by reading two files.
+
 ## Tables covered
 
 Eight tables where judgement about **when** and **how much** lives, i.e. where a day, a time, a priority
