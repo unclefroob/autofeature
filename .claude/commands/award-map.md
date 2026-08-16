@@ -184,6 +184,29 @@ Then, in order, stopping on the first failure:
 
    Non-empty output at this step is a Step 0 failure like any other. Do not
    regenerate to make it quiet.
+
+   **An award mapped before the snapshot existed has no honest baseline here.**
+   Writing one now freezes whatever it currently answers, regressions included,
+   and the file then reads as evidence when it is only a starting point. Say so
+   in the state file the first time, or reconstruct the real baseline:
+
+   ```bash
+   git worktree add --detach /tmp/pre "<commit before the last mapping began>"
+   psql_query "CREATE DATABASE award_baseline"          # a second, isolated database
+   # in the worktree, with DATABASE_URL pointing at award_baseline:
+   #   npm run db:schema && npm run db:load && npm run award:load \
+   #     && npm run nes:load && npm run rules:load
+   # then run the same matrix through the OLD engine and diff the two files
+   ```
+
+   `data/raw` is not committed, so symlink it from the working repo or the load
+   finds nothing and the comparison is against an empty award.
+
+   This is worth doing rather than assuming. Run against the award already in
+   production it found no pricing regression across 1920 answers — and it also
+   found that the harness itself was refusing every leave cell on a bad input,
+   and that one engine's refusal code varied between identical calls. Both were
+   invisible to a suite of a thousand passing tests.
 5. The award exists in the extract:
    ```bash
    psql_query "SELECT award_code, name, version_number FROM fwc_award WHERE award_code = '<CODE>'"

@@ -417,3 +417,17 @@ right one. It says nothing changed without somebody deciding it should, which no
 amount of careful assertion-writing scales to. Step 0.4b writes it, Step 8 reads
 it, and the rule at both ends is that the diff gets read rather than
 regenerated.
+
+Two things it took a real run to learn, both worth carrying:
+
+- **The matrix has to cover every engine that answers money, not just the priced
+  shift.** It began as pricing alone, and proving the last mapping caused no
+  regression then needed termination and leave checked by hand, over service
+  years and age — dimensions a shift does not carry. Whatever an award answers
+  and an employer acts on belongs in the matrix.
+- **A uniform area is the failure mode wearing the guard's own clothes.** All 384
+  leave cells returned one refusal because the harness passed an input the engine
+  could not use. It compared clean, and "leave did not change" was true and
+  meant nothing. Check each area for VARIETY rather than volume, and require a
+  genuinely uniform area — an award that models no leave at all — to be DECLARED
+  in the fixture, so it stays a visible fact rather than a silent pass.
