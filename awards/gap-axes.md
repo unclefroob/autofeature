@@ -170,13 +170,25 @@ and the word carried a claim the axes never made. Anyone reading "closed on all
 eight axes" takes away that the award is done. It meant the award had been
 *read*.
 
-**So there are two verdicts and neither may stand in for the other:**
+**There is one outcome, and accounted is not it.**
 
-- **ACCOUNTED** — the eight axes at zero. Every clause read, every published rate
-  reachable, every rule quoting the award, nothing claiming to be modelled that
-  was not. This is what the axes measure and it is worth having.
-- **IMPLEMENTED** — accounted, AND the `Pending:` count is zero. Nothing remains
-  that could be modelled and is not.
+- **IMPLEMENTED** — the outcome. Every clause read, every published rate
+  reachable, every rule quoting the award, and nothing left that could be
+  modelled and is not.
+- **ACCOUNTED** — a step on the way, and a *diagnosis* when you are not there
+  yet. The eight axes at zero means the award has been fully read, so the
+  backlog in front of you is complete rather than a floor. That is worth knowing
+  and it is not a result.
+
+The first attempt at this fix printed both as a two-line scoreboard. That was
+still wrong: two lines of equal weight read as two scores, the reassuring one
+came first, and a reader takes `ACCOUNTED yes` and stops. Accounted is a
+precondition — you cannot build what you have not read — so it belongs in the
+explanation of an unfinished award, never beside the outcome.
+
+`closure` now prints one verdict and carries the same three states in its exit
+code: **0 implemented, 1 accounted with work remaining, 2 not accounted.** A zero
+exit on an unfinished award is the word "closed" again in numeric form.
 
 `By design:` is deliberately **not** in the target. Driving it to zero would mean
 pretending to verify judgements — whether an agreement was genuine, whether a
@@ -188,9 +200,8 @@ The retail figure is the proof that zero is reachable rather than aspirational.
 It sat at 1 while the method was being written, and nobody noticed the measure
 was missing because the award it was written against had already met it.
 
-**`npm run closure -- <CODE>` prints both.** A mapping may honestly report
-accounted-but-not-implemented part way through; it may never report the first and
-let a reader hear the second.
+A mapping is honestly *unfinished* part way through, and saying so costs nothing.
+What it may never do is report a milestone in words a reader hears as a result.
 
 A new residual is classified at the moment it is written, never left for an audit
 to find.

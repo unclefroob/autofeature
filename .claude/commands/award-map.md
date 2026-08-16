@@ -467,12 +467,19 @@ Every axis zero, retail still accounted, the suite green and no fewer tests than
 the Step 0 baseline. **Anything else is not done**, and the report says which
 axis is open rather than describing the run as nearly finished.
 
-**Read the two verdicts `closure` prints, and never substitute one for the
-other.** ACCOUNTED is the eight axes at zero. IMPLEMENTED is accounted AND the
-`Pending:` count at zero. An award may honestly be reported accounted-but-not-
-implemented part way through a mapping; it may never be reported accounted and
-left to read as finished. `gap-axes.md` has the reasoning and the numbers that
-forced the distinction.
+**`closure` now exits 1 while any `Pending:` remains, so the chain above stops
+here on an unimplemented award. That is the gate working, not a failure of the
+command.**
+
+IMPLEMENTED is the outcome. ACCOUNTED is a step — it tells you the backlog you
+are holding is complete rather than a floor, which is worth knowing and is not a
+result. `gap-axes.md` has the reasoning.
+
+Shipping an award that is accounted but not implemented is a legitimate decision
+— retail ran in production for months at `Pending: 1`. It is a **decision**,
+taken by a person, stated in one plain sentence at the top of the review pack:
+what this award does, what it does not do yet, and how many clauses are waiting.
+It is never the default and never silent.
 
 Then emit `.autofeature/awards/<CODE>-review.md`, for a person who knows the
 award and not SQL:
