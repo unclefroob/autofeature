@@ -230,6 +230,11 @@ In this order:
 Do not edit anything. Do not open a branch. The output is a decision for a person:
 which findings are worth a pass, and when.
 
+**Acting on the findings is `/autofeature:award-close <CODE>`.** It takes the
+backlog this audit measured and builds it, in the order this audit's direction-of-
+error reading implies. Keeping the two apart is deliberate: a command that both
+judges the work and does it will always find the work acceptable.
+
 ## What this is not
 
 It is not a correctness check. Every finding here is about whether the mapping

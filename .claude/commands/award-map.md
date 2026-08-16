@@ -734,6 +734,13 @@ permanently verified. Two commands re-open it deliberately:
 
 Neither edits anything. Both produce a decision for a person.
 
+**Shipping accounted-but-not-implemented leaves a backlog, and the backlog has
+its own command.** `/autofeature:award-close <CODE>` drives `Pending:` to zero on
+an award already read: it repairs the ledger until the count is real, orders the
+work by which gaps under-pay rather than by clause number, and guards every other
+award's priced output while it builds. Use it rather than `resume` — `resume` is
+for a mapping still in flight, and it assumes Steps 0 to 5 are yet to happen.
+
 ## Step 9.5: Promote — HARD CHECKPOINT
 
 **Merging the PR does not put the award anywhere.** Code and data deploy
