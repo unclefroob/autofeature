@@ -136,6 +136,56 @@ Each one must begin with one of two words:
   pretending to verify a judgement or a fact held outside the system, which is
   worse than the gap.
 
+**Every `Pending:` must name the fact that is blocking it**, in the structured
+form `data-requirements.md` defines. A backlog item that says "not modelled yet"
+is not a backlog item, it is a shrug — and a backlog nobody can total is the
+thing that let MA000003 ship 114 of them behind eight green zeroes.
+
+## Accounted is not implemented, and "closed" hid the difference
+
+The single most expensive lesson from mapping the second award, and it is a flaw
+in these axes rather than in that mapping.
+
+Axis 8 requires a residual to carry a **disposition**. It does not require the
+residual to be **closed**, and it cannot: `Pending:` is a legitimate state during
+a mapping and `By design:` is a legitimate state forever. So an award passes all
+eight axes — every clause read, every published rate reachable, every rule
+quoting the award's own words — while implementing almost none of itself.
+
+MA000003 did exactly that:
+
+| award | rows | modelled | `Pending:` | `By design:` |
+|---|---|---|---|---|
+| MA000004 | 256 | 179 | **1** | 15 |
+| MA000003 | 199 | 32 | **114** | 23 |
+
+Both were reported "closed". One had a backlog of one item and the other of 114,
+and the word carried a claim the axes never made. Anyone reading "closed on all
+eight axes" takes away that the award is done. It meant the award had been
+*read*.
+
+**So there are two verdicts and neither may stand in for the other:**
+
+- **ACCOUNTED** — the eight axes at zero. Every clause read, every published rate
+  reachable, every rule quoting the award, nothing claiming to be modelled that
+  was not. This is what the axes measure and it is worth having.
+- **IMPLEMENTED** — accounted, AND the `Pending:` count is zero. Nothing remains
+  that could be modelled and is not.
+
+`By design:` is deliberately **not** in the target. Driving it to zero would mean
+pretending to verify judgements — whether an agreement was genuine, whether a
+change is "major", whether an employee is better off overall. Those correctly end
+at an evidence contract. `Pending:` is the backlog, it is finite, and it is the
+number to drive down.
+
+The retail figure is the proof that zero is reachable rather than aspirational.
+It sat at 1 while the method was being written, and nobody noticed the measure
+was missing because the award it was written against had already met it.
+
+**`npm run closure -- <CODE>` prints both.** A mapping may honestly report
+accounted-but-not-implemented part way through; it may never report the first and
+let a reader hear the second.
+
 A new residual is classified at the moment it is written, never left for an audit
 to find.
 

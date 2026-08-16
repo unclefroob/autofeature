@@ -45,7 +45,10 @@ done
 authoritative:**
 
 - `$AUTOFEATURE_HOME/awards/service-conventions.md` — the service being extended
-- `$AUTOFEATURE_HOME/awards/gap-axes.md` — the eight axes and the definition of done
+- `$AUTOFEATURE_HOME/awards/gap-axes.md` — the eight axes, and why ACCOUNTED and
+  IMPLEMENTED are two verdicts rather than one
+- `$AUTOFEATURE_HOME/awards/data-requirements.md` — what the product must capture
+  before an award can be implemented, and how a `Pending:` names it
 - `$AUTOFEATURE_HOME/awards/rule-tables.md` — what the vocabulary can and cannot say
 - `$AUTOFEATURE_HOME/awards/verify-workflow.md` — semantic verification, run at Step 7.5
 
@@ -360,6 +363,20 @@ Coverage files carry `source = 'award_text'` on every row somebody opened, a
 substantive note on every row, and no inherited statuses. The dispositions file
 goes last and stamps `Pending:` or `By design:` on every residual.
 
+**Every `Pending:` names the fact that blocks it**, as a row in
+`rule_data_requirement` — see `$AUTOFEATURE_HOME/awards/data-requirements.md` for
+the shape, the closed `fact_key` vocabulary, and why `grain` is the field that
+decides which team builds the capture. A `Pending:` with no named fact is not a
+backlog item, and a backlog nobody can total is what let one award ship 114 of
+them behind eight green zeroes.
+
+A note is also not substantive if it is short. `verify.ts` check 9 asks whether
+the stored `clause_text` appears in the award's text, which a seven-character
+fragment satisfies trivially — `"below 0"`, `"further"`, `"in excess of"` all
+passed. Transcribe a whole contiguous passage that carries the rule's meaning on
+its own, not the few words that happen to be unique. Where the two awards
+mapped so far disagree, the ratio is 343 characters average against 30.
+
 `award-text.sql` then replaces the hand-typed `clause_text` with the award's own
 words out of `fwc_clause`, which is the mechanised version of the check a human
 would do by eye.
@@ -419,9 +436,16 @@ npm run rules:load && npm run verify && npm run closure -- <CODE> \
   && npm run closure -- MA000004 && npm test && npm run typecheck
 ```
 
-Every axis zero, retail still closed, the suite green and no fewer tests than the
-Step 0 baseline. **Anything else is not done**, and the report says which axis is
-open rather than describing the run as nearly finished.
+Every axis zero, retail still accounted, the suite green and no fewer tests than
+the Step 0 baseline. **Anything else is not done**, and the report says which
+axis is open rather than describing the run as nearly finished.
+
+**Read the two verdicts `closure` prints, and never substitute one for the
+other.** ACCOUNTED is the eight axes at zero. IMPLEMENTED is accounted AND the
+`Pending:` count at zero. An award may honestly be reported accounted-but-not-
+implemented part way through a mapping; it may never be reported accounted and
+left to read as finished. `gap-axes.md` has the reasoning and the numbers that
+forced the distinction.
 
 Then emit `.autofeature/awards/<CODE>-review.md`, for a person who knows the
 award and not SQL:
@@ -433,8 +457,18 @@ award and not SQL:
 - the Step 7.5 semantic-verification summary — rows checked, any table skipped
   for lack of a schema, every confirmed defect and how it was resolved, every
   cleared disagreement
+- **both verdicts, in the first screenful** — accounted yes/no, implemented
+  yes/no, and if not implemented the `Pending:` count and one plain sentence
+  saying what the award does and does not do yet. A pack that opens with a
+  green table and buries a 69% backlog in a tally is read as a stronger claim
+  than the work supports
 - the coverage tally, and every `Pending:` and `By design:` residual with its
   reason
+- **the data requirements, grouped by grain with counts** — what the product must
+  capture before this award can be implemented, in the award's language and the
+  product's. This is the build list the frontend and API teams work from, and it
+  is the only artefact that turns a backlog of prose into scheduled work. See
+  `awards/data-requirements.md`
 - the refusal ledger from Step 4, meaning what this award cannot say and why
 - what is `derived` rather than `published`, with the clause that justifies it
 - source provenance: award text URL, retrieval date, compilation date, checksums,
