@@ -540,6 +540,53 @@ taken by a person, stated in one plain sentence at the top of the review pack:
 what this award does, what it does not do yet, and how many clauses are waiting.
 It is never the default and never silent.
 
+### The count is the wrong criterion
+
+`Pending: 1` shipped safely and `Pending: 114` obviously should not, but the
+number is not what separates them. Two awards could sit at 50 apiece with one
+safe and the other dangerous.
+
+What separates them is **how each gap fails**:
+
+- **It refuses visibly.** The rule returns `unevaluated`, or the engine raises
+  rather than answering. The caller knows they did not get an answer. Safe at any
+  count — this is the whole reason the service refuses instead of returning zero.
+- **It errs toward over-reporting.** A breach flagged that the award permits,
+  overtime counted generously. Annoying, arguable, and it never takes money off
+  an employee.
+- **It silently under-reports.** The rule simply does not fire, so the figure
+  comes back complete-looking and low. **Nobody notices, and it is somebody's
+  wages.**
+
+**Any `Pending:` in the third category blocks the ship, at any count. Nothing in
+the first two does.** That is the rule, and it is why one award shipped at 1 and
+another must not at 114 — retail's single pending item is about which NES
+entitlements to surface, and it cannot underpay anyone.
+
+Run it against the ledger. In the mapping that produced this rule, exactly three
+of 114 said they under-pay:
+
+```
+cl 10.9   time beyond the agreed hours is overtime. UNDER-reported without
+          the agreed pattern, which under-pays
+cl 20     cl 20.2's remaining limbs ...
+cl 20.2   the limbs keyed to rostered start and finish ...
+```
+
+Three items, not 114, and they share one cause — the agreed pattern and the
+rostered times. That is a shippable scope, and it was invisible while the
+conversation was about a number.
+
+### A `Pending:` that does not state its direction is a blocker
+
+Step 6 requires every note to say which way its omission errs. Of the 114 above,
+**3 stated it and 111 did not** — so the criterion could only be applied to 3% of
+the backlog, and the rest had to be read one by one.
+
+An unstated direction is not "probably fine". It is a gap nobody has classified,
+and it blocks until somebody does. This is cheap to fix at authoring time and
+expensive to reconstruct months later.
+
 Then emit `.autofeature/awards/<CODE>-review.md`, for a person who knows the
 award and not SQL:
 
@@ -632,10 +679,40 @@ export DATABASE_URL="postgresql://award:$(gcloud secrets versions access latest 
 With `DATABASE_URL` pointing at the proxied connection, `scripts/lib/psql.sh`
 and every `npm run` script route to it automatically — nothing else changes.
 
-1. `npm run rules:load` — applies every award's SQL fresh, this one included.
+**Order is load-bearing: data first, image second.** A new column is ADDITIVE, so
+the image already running tolerates it; the new image cannot run without it.
+Reversed, the service raises `column ... does not exist` on every request between
+the two steps.
+
+1. **Apply the migrations, by hand, first.** Nothing applies them for you:
+   `schema-load.sh` sees `instrument` and exits 0 with "Nothing to build", and
+   `rules:load` only touches `rule_*` rows. Every capability approved at Step 4
+   has a file in `db/migrations/` and this is where it lands.
+
+   ```bash
+   for f in db/migrations/*.sql; do
+     echo "-- $f"
+     podman run --rm -i --network host docker.io/library/postgres:16-alpine \
+       psql -v ON_ERROR_STOP=1 "$DATABASE_URL" < "$f"
+   done
+   ```
+
+   Skipping this is the near-miss that produced the rule: five schema changes,
+   three with no migration, a green suite locally, and a production database that
+   would have failed on the first priced shift.
+
+2. `npm run db:remote` — schema (skips, correctly), migrations, workbooks, award
+   text, NES text, then every award's rules.
+
+   **Not `rules:load` alone.** `award-text.sql` replaces each rule's hand-typed
+   `clause_text` with the award's own words out of `fwc_clause`, and `fwc_clause`
+   is populated by `award:load`. A remote database that has never seen this award
+   has no text for it, so `rules:load` on its own leaves every transcription
+   unverified and `verify` reports a category it does not report locally.
+
    Each award's file deletes only its own instrument's rows (per
-   `service-conventions.md`'s versioning doctrine), so this does not disturb
-   any other award or any employer's `rate_override`/`declaration` data.
+   `service-conventions.md`'s versioning doctrine), so this does not disturb any
+   other award or any employer's `rate_override`/`declaration` data.
 2. `npm run verify` — must be clean against the remote database, same as
    local. A pass locally is not evidence of a pass remotely; the workbooks or
    award text loaded there may not be what was tested against.
@@ -645,6 +722,17 @@ and every `npm run` script route to it automatically — nothing else changes.
 4. `npm run closure -- MA000004` (and any other previously-mapped award) —
    confirm nothing else regressed. The remote database may be on a different
    workbook release than local.
+
+5. **Deploy the image**, last, per `docs/deploy.md`. Any capability from Step 4
+   is engine code, and until this runs the deployed service is the previous one —
+   reading new rows with old logic, which is exactly the direction that is safe
+   and exactly why the order is this way round.
+
+6. **Smoke-test the deployed service against the new award**, with payloads taken
+   from `test/api.test.ts` rather than written from memory. Routes are `/v1/...`
+   and the bodies are flat; a smoke test that 404s tells you nothing about the
+   deploy. Price one shift on the new award and one on the award already in
+   production — the second is the regression check that matters.
 
 **Stop and present the remote verify + closure + award-verify results to the
 user before this is called done.** Only after they confirm does this award
