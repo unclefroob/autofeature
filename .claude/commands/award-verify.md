@@ -219,3 +219,8 @@ It is a second, independent reading, not a proof. Two agents can share a blind s
 construction the way two people can. A `high`-confidence defect is strong enough to block; a clean run is
 evidence worth having, not a guarantee — the review pack still needs the human sign-off `award-map.md`
 calls for before anything ships.
+
+`/autofeature:award-audit` is the complement: this command re-derives predicates
+from the award's words, that one reads what was written *about* the award — the
+dispositions, the transcriptions, the backlog. A clean run of either is not a
+clean run of both.

@@ -315,6 +315,42 @@ into `docs/interpretation-settings.md` following that file's own rules, in
 particular that **only a rule which can name the breaching day may carry a pay
 consequence**, and the setting defaults to the conservative reading.
 
+### A capability is not built until it can reach production
+
+Every approved `needs_capability` item is a schema change, and a schema change
+that exists only in `db/schema.sql` reaches a FRESH database and never a
+populated one — `schema-load.sh` finds the schema present and skips. Mapping the
+second award added five columns and tables this way; three had no migration, the
+whole test suite passed against a schema production did not have, and the first
+priced shift in production would have raised `column "classification_levels" does
+not exist`.
+
+So an approved capability owes three things, not one: the column, a file in
+`db/migrations/`, and a passing `test/schema-drift.test.ts`. Say so at the
+checkpoint, because the cost quoted for a capability is wrong without them.
+
+### The second award finds bugs in the first — expect it, and ship them separately
+
+The most valuable output of a second mapping is not the second award. It is the
+defects a different award SHAPE exposes in code that only ever had to serve one:
+
+- a Sunday penalty split by classification, which retail does not have, found
+  `rule_condition` with no classification predicate — **every level 2 and 3
+  employee's Sunday priced 25 points light**, silently, on the highest-volume
+  penalty day
+- a casual-majority workforce found s123 excluding casuals from notice but not
+  redundancy, so a nine-year casual showed nil notice beside sixteen weeks
+- fetching a second award's NES text found a parser embedding page headers in
+  seven sections of the Act already being cited as verified
+
+None of those is `needs_capability` in the vocabulary sense and none belongs in
+this award's branch. **They fix an award already in production, so they ship
+first and separately**, on their own merits and their own review. Holding a live
+underpayment behind an unfinished mapping is the wrong trade.
+
+Record them in the triage as a fourth list — *defects in shared code this award
+revealed* — and get a decision on each before Step 5.
+
 **Stop and present to the user:** the triage table, and separately and
 prominently the `needs_capability` and `refuse` lists, which together are the
 ledger of what this award will not be able to say. Ask which `needs_capability`
@@ -350,6 +386,12 @@ table in that file's format, and exits non-zero when any axis is open. Axes 3, 4
 award-scoped (an engine's route either exists or it does not); run it as-is under
 every award's report rather than trying to filter it per award.
 
+**5c-bis.** Any test that assumes this service has exactly ONE award will now
+fail, and those are not in the two suites above. `api.test.ts` asserted
+`/v1/awards` returns a list of length 1; a second priceable award broke it,
+correctly. Fix them by asserting the SET rather than the count, so the test does
+not need editing again the next time an award is mapped.
+
 **5d.** Run it. `npm run closure -- <CODE>`.
 
 It will report nearly everything open, because nothing is modelled yet. **That
@@ -363,8 +405,19 @@ parameterisation broke retail, fix that before writing a line of the new award.
 ## Step 6: Author, burning the list down
 
 One file at a time, in `scripts/rules-load.sh` order (`service-conventions.md`
-has the list). After each file: `npm run rules:load && npm run closure -- <CODE>`,
+has the list). After each file:
+
+```bash
+npm run rules:load && npm run closure -- <CODE> && npm test
+```
+
 and record the new balance.
+
+**`npm test` is in that chain deliberately.** An earlier loop ran only
+`rules:load && closure`, and a mapping run pushed a commit with five failing
+tests because closure was green and nobody re-read the suite count. Closure
+measures the ledger; the suite measures everything the ledger does not, including
+every existing test that quietly assumed this service had one award in it.
 
 Rules for every row, without exception:
 
@@ -412,6 +465,12 @@ Fan out authoring across independent files where it is safe (allowances, leave,
 termination and evidence do not interact), on **sonnet**. Keep `rules.sql` and the
 coverage family in the orchestrator's own context, because they are where the
 judgement from Step 4 gets spent.
+
+**Agents that WRITE need `isolation: "worktree"`.** Four authoring agents were
+once launched into one shared tree and each reported "another session is editing
+this tree" — which was its three siblings. Nothing was lost that time, but that
+was luck rather than design, and the cost of a worktree is a few hundred
+milliseconds against a mapping measured in hours.
 
 ## Step 7: The scenario suite
 
@@ -526,6 +585,19 @@ voice (they explain what was found, not what was typed), PR body carrying the
 closure table and the refusal ledger. Attach the review pack.
 
 Do not merge. An award mapping nobody read is worth less than no mapping at all.
+
+## After it ships
+
+The method keeps learning after an award is mapped, so a mapping is never
+permanently verified. Two commands re-open it deliberately:
+
+- **`/autofeature:award-audit <CODE>`** — read-only, against the principles as
+  they stand today rather than when the award was mapped. Run it when a principle
+  changes, and on every previously-shipped award, not only the new one.
+- **`/autofeature:award-drift <CODE>`** — when the Commission publishes new
+  figures or a variation.
+
+Neither edits anything. Both produce a decision for a person.
 
 ## Step 9.5: Promote — HARD CHECKPOINT
 

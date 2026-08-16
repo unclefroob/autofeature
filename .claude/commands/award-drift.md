@@ -182,3 +182,7 @@ historical rows are left alone rather than re-litigated).
 A note for whoever builds `scripts/closure.ts`: the current-vs-ever-read distinction in
 `service-conventions.md` applies to the axes too. Get it backwards and a re-authored award reports either
 false ambiguity or a false coverage gap.
+
+After resolving drift, consider `/autofeature:award-audit <CODE>` — a variation
+changes clauses, and a clause whose reading changed may carry a disposition that
+no longer fits it.
