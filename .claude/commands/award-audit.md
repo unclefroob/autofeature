@@ -171,16 +171,16 @@ ten notes between 400 and 670 characters carry exactly one disposition each and
 are long because they are thorough. Thoroughness is not the defect.
 
 ```sql
-SELECT clause, status,
-       (length(note)-length(replace(note,'MODELLED','')))/8
-     + (length(note)-length(replace(note,'OUT OF SCOPE','')))/12
-     + (length(note)-length(replace(note,'THE PRODUCT','')))/11 AS markers
-  FROM rule_coverage
- WHERE instrument_id = '<CODE>' AND status <> 'modelled'
- HAVING (length(note)-length(replace(note,'MODELLED','')))/8
-      + (length(note)-length(replace(note,'OUT OF SCOPE','')))/12
-      + (length(note)-length(replace(note,'THE PRODUCT','')))/11 > 1
- ORDER BY markers DESC;
+-- The count has to be computed in a subquery: HAVING without GROUP BY is not
+-- a filter on a per-row expression, and Postgres rejects it outright.
+SELECT clause, status, markers, length_chars FROM (
+  SELECT clause, status, length(note) AS length_chars,
+         (length(note)-length(replace(note,'MODELLED','')))/8
+       + (length(note)-length(replace(note,'OUT OF SCOPE','')))/12
+       + (length(note)-length(replace(note,'THE PRODUCT','')))/11 AS markers
+    FROM rule_coverage
+   WHERE instrument_id = '<CODE>' AND status <> 'modelled'
+) x WHERE markers > 1 ORDER BY markers DESC;
 ```
 
 Extend the marker list as new ones appear; it is a smell detector, not a grammar.
