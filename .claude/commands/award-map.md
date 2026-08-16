@@ -563,8 +563,14 @@ the first two does.** That is the rule, and it is why one award shipped at 1 and
 another must not at 114 — retail's single pending item is about which NES
 entitlements to surface, and it cannot underpay anyone.
 
-Run it against the ledger. In the mapping that produced this rule, exactly three
-of 114 said they under-pay:
+**Apply it per row, and describe the result per clause.** The row count is what
+the gate reads; the clause count is what a person can act on. In the mapping that
+produced this rule, 114 pending rows fell across 27 clauses — Schedule C alone
+contributing ten of them for one supported-wage implementation — so "114" was
+never a workload and saying it as though it were is the same overstatement as
+"closed", pointed the other way.
+
+Run it against the ledger. Exactly three of those 114 said they under-pay:
 
 ```
 cl 10.9   time beyond the agreed hours is overtime. UNDER-reported without
@@ -573,9 +579,12 @@ cl 20     cl 20.2's remaining limbs ...
 cl 20.2   the limbs keyed to rostered start and finish ...
 ```
 
-Three items, not 114, and they share one cause — the agreed pattern and the
+Three rows, in two clauses, sharing one cause — the agreed pattern and the
 rostered times. That is a shippable scope, and it was invisible while the
-conversation was about a number.
+conversation was about the number 114.
+
+The sentence a decision can be made from is *"27 areas unbuilt, 2 of which can
+silently under-pay, both waiting on the same product change"* — not a count.
 
 ### A `Pending:` that does not state its direction is a blocker
 

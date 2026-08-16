@@ -186,6 +186,26 @@ came first, and a reader takes `ACCOUNTED yes` and stops. Accounted is a
 precondition — you cannot build what you have not read — so it belongs in the
 explanation of an unfinished award, never beside the outcome.
 
+### The row count is the gate. The clause count is the shape.
+
+`closure` prints both — *114 Pending: across 27 clauses* — because either number
+alone misleads, in opposite directions.
+
+The row count overstates the work. Schedule C contributes ten rows, C.1 to C.10,
+for one supported-wage implementation; cl 18 contributes nine for one accident-pay
+tracker. "114 pending" sounds like 114 tasks and is nothing like it, which is how
+a backlog gets described as impossible when the honest description is *27 areas,
+two of which can under-pay, both waiting on the same product change.*
+
+**But the verdict keys on rows and must never key on clauses.** A clause is
+finished only when every one of its rows is. That is precisely what the
+sub-clause axis exists to enforce, and the reason it exists is cl 21.3 — an
+entire time-off-in-lieu mechanism that sat inside a clause marked `modelled` at
+clause level and appeared on no gap list at any point.
+
+Deciding "done" at clause level is that failure with a different name. Use the
+clause count to say how big the work is; never to say it is over.
+
 `closure` now prints one verdict and carries the same three states in its exit
 code: **0 implemented, 1 accounted with work remaining, 2 not accounted.** A zero
 exit on an unfinished award is the word "closed" again in numeric form.
