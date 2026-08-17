@@ -272,6 +272,34 @@ const SCHEMAS = {
       },
     },
   },
+  // Added after a run reported "0 skipped for lack of a schema" while checking none of this
+  // table. A table absent from BOTH this map and the command's Step 2 query is not skipped —
+  // it is invisible, and the run's own coverage line says nothing about it. The rows are a
+  // break-length band table, exactly the shared-clause_text shape the grouping handles.
+  rule_break_entitlement: {
+    fields: 'hours_from / hours_to (the band of SHIFT LENGTH in hours this row covers; hours_to null ' +
+      'means unbounded above), hours_from_exclusive (true where the band starts STRICTLY above ' +
+      'hours_from — read the boundary wording: "4 hours or more but no more than 5" means 5 hours ' +
+      'earns THIS band, so the next one must start above 5), paid_rest_breaks (how many), ' +
+      'rest_minutes (each, not the total), unpaid_meal_breaks (how many), ' +
+      'meal_minutes_min / meal_minutes_max (the range the clause permits, null where it states none). ' +
+      'Enumerate one instance per band the clause states, including any band that earns NOTHING — ' +
+      'a short shift with no entitlement is a row, not an absence.',
+    schema: {
+      type: 'object', required: ['hoursFrom', 'paidRestBreaks', 'restMinutes', 'unpaidMealBreaks', 'reasoning'],
+      properties: {
+        hoursFrom: { type: 'number' },
+        hoursFromExclusive: { type: 'boolean' },
+        hoursTo: { type: ['number', 'null'] },
+        paidRestBreaks: { type: 'integer' },
+        restMinutes: { type: 'integer' },
+        unpaidMealBreaks: { type: 'integer' },
+        mealMinutesMin: { type: ['integer', 'null'] },
+        mealMinutesMax: { type: ['integer', 'null'] },
+        reasoning: { type: 'string' },
+      },
+    },
+  },
 }
 
 // ---------- Grouping: rows that share one clause_text share one legal sentence ----------
@@ -403,6 +431,10 @@ const FIELD_MAP = {
     ['daysPerOccasion', 'days_per_occasion'], ['hoursPerOccasion', 'hours_per_occasion'],
     ['excessiveWeeks', 'excessive_weeks'], ['cumulative', 'cumulative']],
   rule_break_placement: [['kind', 'kind'], ['value', 'value']],
+  rule_break_entitlement: [['hoursFrom', 'hours_from'], ['hoursFromExclusive', 'hours_from_exclusive'],
+    ['hoursTo', 'hours_to'], ['paidRestBreaks', 'paid_rest_breaks'], ['restMinutes', 'rest_minutes'],
+    ['unpaidMealBreaks', 'unpaid_meal_breaks'], ['mealMinutesMin', 'meal_minutes_min'],
+    ['mealMinutesMax', 'meal_minutes_max']],
 }
 
 // How many of a candidate's fields disagree with the shipped row — the matching score. Matching

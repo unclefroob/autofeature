@@ -57,9 +57,16 @@ done
 ## Args
 
 - `<AWARD_CODE>` — required, e.g. `MA000003`.
-- `tables:` — optional comma list, restricts to those `rule_*` tables. Default: all eight the workflow
+- `tables:` — optional comma list, restricts to those `rule_*` tables. Default: all nine the workflow
   covers (`rule_condition`, `rule_span`, `rule_overtime_threshold`, `rule_junior_band`, `rule_allowance`,
-  `rule_roster`, `rule_leave`, `rule_break_placement`).
+  `rule_roster`, `rule_leave`, `rule_break_placement`, `rule_break_entitlement`).
+
+  **This list and `PREDICATE_TABLES` in `scripts/lib/verification.ts` have to hold the same tables.**
+  They did not: `rule_break_entitlement` was in the service's count of predicate rows and in neither
+  the query below nor the workflow's `SCHEMAS`, so nine rows across two awards were never read and no
+  run said so. A table missing from the query is not reported as skipped — the workflow only skips
+  what it was handed and could not type — so the coverage line reads clean while the table is
+  invisible. Before adding a predicate-bearing table to the service, add it in both places.
 - `clauses:` — optional comma list of clause prefixes (e.g. `15,15A`), restricts to rows whose `clauses`
   column starts with one of them. Use this for a targeted re-check after an award variation, rather than
   re-running the whole award.
@@ -165,9 +172,24 @@ SELECT jsonb_agg(r) FROM (
          jsonb_build_object('kind', kind, 'value', value)
     FROM rule_break_placement
    WHERE instrument_id = '<CODE>' AND clause_text IS NOT NULL AND operative_to IS NULL
+
+  UNION ALL
+  SELECT 'rule_break_entitlement', clauses, clause_text,
+         jsonb_build_object('hours_from', hours_from, 'hours_from_exclusive', hours_from_exclusive,
+                             'hours_to', hours_to, 'paid_rest_breaks', paid_rest_breaks,
+                             'rest_minutes', rest_minutes, 'unpaid_meal_breaks', unpaid_meal_breaks,
+                             'meal_minutes_min', meal_minutes_min, 'meal_minutes_max', meal_minutes_max)
+    FROM rule_break_entitlement
+   WHERE instrument_id = '<CODE>' AND clause_text IS NOT NULL AND operative_to IS NULL
 ) r
 " > /tmp/award-verify-rows.json
 ```
+
+**Reconcile the count before running.** `npm run verified -- <CODE>` reports how many predicate rows
+the service believes the award has. If this query returns fewer, find out why for every missing row
+before spending on the workflow — a row with no `clause_text` is a legitimate and reportable
+exclusion, a whole table absent from the query above is the defect described under `tables:`. Say the
+two numbers in the report either way, so "verified 65 rows" is never read as "verified the award".
 
 Read the file, confirm it parsed and the row count is sane (roughly the same order of magnitude as the
 closure report's clause count for this award). A near-empty result usually means `award-text.sql` hasn't
