@@ -126,6 +126,11 @@ const ROSTER_KINDS = [
   'sunday_days_off','shiftwork_public_holiday_avoidance','roster_change_notice',
   'no_mixed_shiftwork','roster_period_max','shift_hours_continuous','recall_minimum',
   'outside_agreed_pattern','excess_travel_costs','travelling_time','moving_expenses',
+  // Added with MA000003. A reader whose vocabulary cannot express the shipped
+  // value will always disagree with it, so this list going stale manufactures
+  // false findings — the opposite failure to the one this workflow exists for.
+  // It is a copy of db/schema.sql's CHECK and has to move when that does.
+  'sunday_overtime_minimum','cycle_ordinary_hours',
 ]
 
 const SCHEMAS = {
