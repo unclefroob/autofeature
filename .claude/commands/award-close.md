@@ -263,12 +263,31 @@ Required:
 - the suite green with no fewer tests than the Step 0 baseline
 - every snapshot clean, or every diff explained
 
+### Verification is part of this step, not a recommendation after it
+
 **Closing a backlog invalidates the verification it had.** Every clause built in
 Step 3 added predicate rows nobody has re-derived, so `closure`'s correctness
-verdict will read `STALE` (or `NEVER VERIFIED`) even where it read VERIFIED
-before this ran. That is the record working. Say it in the report and treat
-`/autofeature:award-verify` as the natural next command, scoped to the clauses
-this run touched if a full re-run is too much.
+verdict reads `STALE` — or `NEVER VERIFIED` — the moment the first clause lands.
+
+So **run it here**:
+
+```
+/autofeature:award-verify <CODE>
+```
+
+then fix what it finds and record the run, which `award-verify` Step 5 does.
+
+This used to say "treat award-verify as the natural next command", and that one
+word — *next* — is why every run of this command ended with an outstanding item.
+A step that RECOMMENDS the last step guarantees the work is never finished, and
+the person who asked for no gaps gets a report with a gap in it. `Pending: 0` and
+`STALE` is not a closed award; it is a coverage number with the correctness
+question still open, which is the same overstatement as the word "closed" three
+verdicts ago.
+
+Scope it if the full run is too much — `clauses:` limited to what Step 3 touched
+is a real result and the record says so. What is not acceptable is finishing with
+the verdict unread.
 
 Then the report, which is a decision for a person and not a summary:
 
@@ -284,9 +303,13 @@ Then the report, which is a decision for a person and not a summary:
 
 ## Prohibitions
 
-- **Do not promote.** Merging is not deploying and this command does neither.
-  `award-map` Step 9.5 is the gated path to the one live database, and it is
-  gated because there is no staging tier.
+- **Do not promote — but DO merge and push.** Promotion is the gated thing, not
+  version control. `award-map` Step 9.5 is the gated path to the one live
+  database, and it is gated because there is no staging tier and the first
+  remote load is directly into what real customers price against.
+  Leaving finished, green, committed work sitting on an unpushed branch is not
+  caution about that gate. It is unfinished work wearing caution's clothes, and
+  it reads to whoever asked as another outstanding item.
 - **Do not close a residual by re-labelling it.** Turning a `Pending:` into a
   `By design:` because it is hard is the failure this whole method exists to
   make visible. `By design:` is for a boundary where closing it would mean
