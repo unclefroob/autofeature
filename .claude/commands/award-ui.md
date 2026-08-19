@@ -134,11 +134,31 @@ from. For each case:
 2. **Build the shift** on the Roster page for the case's date, times and break,
    then **assign the employee** — a shift with nobody on it has no employment to
    check and no chip at all, which is correct and is not a finding.
-3. **Read the API's answer** for that roster:
-   `GET /api/pages/roster?date=<date>&view=day&locationId=<id>` and take
-   `data.compliance.byAssignment["<shiftId>:<userId>"]`. That object holds the
-   breaches, the warnings and the findings — it is exactly what the screen is
-   given.
+3. **Read the API's answer** for that roster, with the request the screen
+   actually makes:
+
+   ```
+   GET /api/pages/roster?locationId=<id>&weekStarting=<YYYY-MM-DD>
+   ```
+
+   `weekStarting` is the **Sunday** of the case's week — `startOfWeek` from
+   date-fns with no options, which is what `Roster.js` uses. There is no `date`
+   parameter and no `view` parameter, whatever the browser's address bar shows:
+   the page reads the URL to decide what to draw and then asks the API for a
+   whole week.
+
+   **Check `data.shifts` is not empty, and that your `<shiftId>:<userId>` key is
+   present in `byAssignment`, before reading anything else.** Unknown parameters
+   are ignored rather than refused, so a wrong request returns `200` with
+   `available: true`, `unchecked: []` and `byAssignment: {}` — for the CURRENT
+   week, not the case's. Every case then derives `Not checked`, every chip
+   agrees, and the run reports a clean product having examined nothing. This
+   command was written with `?date=&view=day` and would have done exactly that.
+   A missing key is a run failure. It is never a `Not checked`.
+
+   Then take `data.compliance.byAssignment["<shiftId>:<userId>"]`. That object
+   holds the breaches, the warnings and the findings — it is exactly what the
+   screen is given.
 4. **Derive the label that object requires**, in `AwardFindings`' own order:
    breaches → `N issue`/`N issues`; else warnings → `N warning`/`N warnings`;
    else findings carrying `requires` → `N to answer`; else `Not checked`.
