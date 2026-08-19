@@ -53,30 +53,54 @@ done
 - **27019** — Mongo, the `shiftos-mongo` container. `podman start shiftos-mongo`.
 - **5112** — shiftos-api. `npm run dev` in shiftos-api.
 - **3200** — the compliance service. `npm run dev` in rosterio-compliance-service.
-  Without it the roster renders "Not checked" on everything and every case fails
-  for one reason, which looks like a catastrophe and is a missing process.
+  Needed twice over: without it the roster renders "Not checked" on everything
+  and every case fails for one reason, which looks like a catastrophe and is a
+  missing process — and the seeder in Step 2 asks it what the award needs before
+  it can build anybody.
 - **3000** — shiftos-manager. `npm start`. Slow to boot; wait for it.
 
 The manager reads `REACT_APP_API_URL` from its `.env`, which points at 5112.
 
-## Step 2: Seed, and know what you seeded
+## Step 2: Seed a tenant, from the award itself
 
 ```bash
-cd shiftos-api && npx ts-node --transpileOnly scripts/seed-supermarket.ts
+cd shiftos-api && npm run seed:award -- --award <CODE>
 ```
 
-A pro-plan supermarket on MA000004, built — in its own words — "to be pushed to
-the limits of that award rather than to look good in a demo". Every employee
-exists to make one branch of the award reachable and the comment above each says
-which, with both sides of a boundary carried where two branches disagree.
+Works for any mapped award, because it does not know anything about any of them.
+It asks `GET /v1/instruments/<CODE>/employee-facts` — the compliance service's
+own answer to "what must an employee record carry for this award to price them",
+which is what the product already renders the Staff form from — and builds a
+cohort covering what it names. Somebody at every classification, somebody on
+every employment type, a junior at each year from 16 to 21, a shiftworker, and
+one employee carrying every optional fact while the rest carry none, so both
+sides of each flag are reachable.
 
-It DROPS and rebuilds the tenant. Never run it against anything but a local
-stack, and confirm `MONGODB_URI` points at 27019 before you do.
+MA000004 gives 18 staff on retail levels; MA000003 gives 14 on fast-food ones,
+including its "in charge of 2 or more people" split. Neither award is mentioned
+anywhere in the seeder. That is the point: a fixture written for one award is a
+copy of that award that can go stale, and this asks the award instead.
 
-Sign in as `manager@freshsupermarkets.com` / `Supermarket1234!`.
+It prints a JSON manifest to stdout — the sign-in, the locations, and every
+staff member with the profile they satisfy. Keep it: Step 4 resolves each case's
+`profile` against it rather than hunting the Staff page.
 
-For a non-MA000004 award there is no seed, and that is a real stop: say so
-rather than testing MA000004 and reporting it as the award that was asked for.
+It **drops and rebuilds** the tenant each run, deliberately, so a run never
+depends on the run before it. Confirm `MONGODB_URI` points at the local 27019
+before running it, and never point it anywhere else.
+
+No shifts are seeded. The roster is what the UI run is about to build, and a
+pre-seeded one collides with it — leftover rosters fail generated cases on
+consecutive-days and weekly-hours rules that have nothing to do with them.
+
+### When the richer fixture is the better choice
+
+For MA000004 specifically, `scripts/seed-supermarket.ts` is 650 lines written by
+somebody who knew the award: deliberate pairs either side of a boundary, a
+Melbourne Cup public holiday, real qualifications, a closed pay period. It is
+better than the generic seeder for that award and does not replace it. Use it
+when a case needs any of that; use `seed:award` when you need an award the
+supermarket seed has never heard of, which is every award but one.
 
 ## Step 3: Generate
 
@@ -151,8 +175,10 @@ Append to `.autofeature/awards/<CODE>-review.md` under `## UI verification — <
 ## What this is not
 
 It is a browser driving a seeded tenant, so it inherits everything about that
-tenant: one employer, one award, two locations, the staff the seed happens to
-build. It does not prove the screen is right for an employer it has never seen.
+tenant: one employer, one award, two locations, and a cohort built to cover the
+award's declared facts rather than to look like a real workforce. Nobody works a
+pattern, nobody has history, and no two employees are related. It does not prove
+the screen is right for an employer it has never seen.
 
 And it cannot tell you the award is modelled correctly — by design. If a case
 disagrees with the engine, the engine is the reference and the screen is what is
