@@ -116,34 +116,58 @@ finding the engine raises, with its verdict and clause. A case whose
 thing that checks a lawful roster does not raise a false alarm, which is the
 defect that erodes trust in the screen fastest.
 
-## Step 4: Drive the browser
+## Step 4: Drive the browser, and get the truth from the same call the UI makes
 
-Chrome MCP. For each case, in the Roster page:
+**The generated cases do NOT carry an expected chip label, on purpose.** Two
+attempts at predicting one were wrong by construction: the generator calls
+`checkRoster` with the case's own shifts, while the roster screen renders from
+`checkRosterAssignments`, which queries the tenant for surrounding shifts and
+supplies its own window. Different inputs, different findings. The compliance
+service has no tenant to ask, so it cannot know what the screen will say.
 
-1. Pick the case's employee. `profile` names what the case needs
-   (`full_time`, an age, `shiftworker`) rather than a person, because the people
-   belong to whichever tenant is seeded — resolve it against the Staff page once
-   and reuse the mapping.
-2. Add Shift for the case's date, set the times and break, save.
-3. Read the award chip on the shift card and the findings behind it.
-4. Compare against `expect`.
+So the reference for a UI assertion is the API payload the screen itself renders
+from. For each case:
+
+1. **Resolve the employee.** The case's `profile` names what it needs
+   (`full_time`, an age, `shiftworker`); the seed manifest from Step 2 maps each
+   profile to a real address. Do it once and reuse it.
+2. **Build the shift** on the Roster page for the case's date, times and break,
+   then **assign the employee** — a shift with nobody on it has no employment to
+   check and no chip at all, which is correct and is not a finding.
+3. **Read the API's answer** for that roster:
+   `GET /api/pages/roster?date=<date>&view=day&locationId=<id>` and take
+   `data.compliance.byAssignment["<shiftId>:<userId>"]`. That object holds the
+   breaches, the warnings and the findings — it is exactly what the screen is
+   given.
+4. **Derive the label that object requires**, in `AwardFindings`' own order:
+   breaches → `N issue`/`N issues`; else warnings → `N warning`/`N warnings`;
+   else findings carrying `requires` → `N to answer`; else `Not checked`.
+5. **Compare it to the chip on the shift card**, and compare each expanded
+   finding line against the clause the payload names.
+
+A disagreement between step 4 and step 5 is a UI defect: the screen was handed
+an answer and showed something else. Agreement means the screen is faithful,
+which is all this command claims.
 
 **There is not one `data-testid` in this application.** Selectors are visible
-text and roles, which is closer to what a manager sees and more brittle than an
-attribute — so a case that cannot find its control is a SELECTOR failure, not a
+text and roles — closer to what a manager sees, and more brittle than an
+attribute. A case that cannot find its control is a SELECTOR failure, not a
 compliance one, and must be reported as such. Never let a missed click read as a
 missing finding.
 
 The text to match, from `AwardFindings.jsx`:
 
-- the chip reads `N issue` / `N issues` for breaches, `N warning` / `N warnings`,
-  `N to answer` where the engine wants a figure only a person holds, and
-  `Not checked`
+- the chip reads `N issue` / `N issues`, `N warning` / `N warnings`,
+  `N to answer`, or `Not checked`
 - each finding line reads `cl {clause} {message}`, or `Agreed {message}` where it
   comes from the employee's own agreement rather than the award
 
-So a case expecting `{ kind: "max_daily_hours", verdict: "warning", clause: "15.4" }`
-should find a warning chip and a line beginning `cl 15.4`.
+`Not checked` is worth understanding rather than treating as failure. It is what
+the screen shows whenever nothing is broken and something could not be judged —
+a single shift on an empty roster always leaves a 28-day-window rule unevaluated
+— and it is also what a manager sees when the compliance service is unreachable.
+Both are honest; neither is a defect on its own. What would be a defect is the
+chip disagreeing with the payload it was given.
 
 ## Step 5: Clean up, every time
 
