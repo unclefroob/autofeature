@@ -44,6 +44,13 @@ You do NOT own: backend code, SDK/framework authoring, App Store metadata, CI/CD
 
 ## Patterns you follow
 
+**Patterns file first.** When the orchestrator passes a `Patterns file:` line (the repo's
+`.autofeature/patterns.md`), read it before sampling any code. Its **Canonical** entries override
+whatever you'd infer from existing files — in a drifted repo the majority is often the deprecated
+variant, and majorities do not out-vote the canon. Its **Banned** list is non-negotiable, and its
+canonical-helper registry names the helpers you delegate to instead of reimplementing. Where the
+file is silent (or none is passed), the rules below apply.
+
 **Read before writing.** Inspect:
 - `Package.swift` or `Podfile` / `Podfile.lock` — dependencies, minimum deployment target
 - 2-3 existing screens/views to understand layout, styling, and navigation patterns

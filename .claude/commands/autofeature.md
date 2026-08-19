@@ -203,7 +203,8 @@ Agent({
   Repo: [pwd]
 
   Find and return file paths (no excerpts unless load-bearing):
-  1. Project conventions: CLAUDE.md, README, lint config, formatter config, tsconfig
+  1. Project conventions: .autofeature/patterns.md FIRST (the repo's coding canon — if present,
+     return its path and its status line DRAFT/ACTIVE), then CLAUDE.md, README, lint config, formatter config, tsconfig
   2. Tech stack signals: package.json deps that match (express|fastify|@nestjs|hapi|koa) | (react|react-native) | mongoose, ios/ folder, android/ folder
   3. Test setup: test command from package.json, jest/vitest/playwright configs, existing test directories
   4. E2E setup: @playwright/test in deps, playwright.config files, e2e/ directories
@@ -224,6 +225,9 @@ From the Explore result, record:
 - `STACK = NODE_BACKEND | REACT | REACT_NATIVE` (one or more)
 - `HAS_E2E = true | false`, `E2E_TOOL = playwright | cypress | none`
 - `TEST_CMD = [from package.json]`
+- `PATTERNS_FILE = .autofeature/patterns.md (+ DRAFT|ACTIVE) | none` — the repo coding canon
+  maintained by `/autofeature:patterns`. When set, it is passed to every specialist below and
+  checked against in Step 9; its Canonical decisions override repo sampling.
 
 ### 2c. Interrogation questions
 
@@ -362,7 +366,9 @@ After the Plan subagent returns, fan out the architects in parallel based on STA
 For each applicable architect, compose a spawn prompt:
 1. Read `$AUTOFEATURE_HOME/agents/<agent-name>.md`
 2. Append: feature brief path, mode=`design`, repo path
-3. Spawn via `Agent` (subagent_type=`general-purpose`, **`model: "sonnet"`** per `orchestrator/model-tiers.md`)
+3. If `PATTERNS_FILE` is set, append: `Patterns file: [path] ([status]) — its Canonical/Banned
+   decisions override repo sampling; delegate to its canonical-helper registry; where silent, match the repo.`
+4. Spawn via `Agent` (subagent_type=`general-purpose`, **`model: "sonnet"`** per `orchestrator/model-tiers.md`)
 
 **Send all applicable Agent calls in a SINGLE message for true parallelism.**
 
@@ -455,14 +461,14 @@ For each architect that produced a design, spawn the same agent in `implement` m
 
 ```
 [single message] — all architects at model: "sonnet" (orchestrator/model-tiers.md)
-Agent({ description: "Backend impl", model: "sonnet", prompt: "[express-mongo-architect.md] + mode=implement + brief path + branch" })
-Agent({ description: "Web impl",     model: "sonnet", prompt: "[react-architect.md] + mode=implement + brief path + branch" })
-Agent({ description: "Mobile impl",  model: "sonnet", prompt: "[react-native-architect.md] + mode=implement + brief path + branch" })
+Agent({ description: "Backend impl", model: "sonnet", prompt: "[express-mongo-architect.md] + mode=implement + brief path + branch + PATTERNS_FILE line (if set)" })
+Agent({ description: "Web impl",     model: "sonnet", prompt: "[react-architect.md] + mode=implement + brief path + branch + PATTERNS_FILE line (if set)" })
+Agent({ description: "Mobile impl",  model: "sonnet", prompt: "[react-native-architect.md] + mode=implement + brief path + branch + PATTERNS_FILE line (if set)" })
 ```
 
 Each implementer follows TDD per `feature-plan.md` (RED → verify RED → GREEN → verify GREEN → REFACTOR).
 
-For `micro` scope: orchestrator implements directly in main context — no fan-out.
+For `micro` scope: orchestrator implements directly in main context — no fan-out (still honoring `PATTERNS_FILE` when set).
 
 ### 7c. E2E test writing (Playwright — React/web only)
 
@@ -607,6 +613,19 @@ Skill({ skill: "security-review", args: "" })
 
 Add findings to the same triage queue.
 
+### 9b2. Patterns conformance check
+
+If `PATTERNS_FILE` is set, also run the diff conformance check while the parallel agents run:
+
+```
+Skill({ skill: "autofeature:patterns", args: "check" })
+```
+
+Findings join the same triage queue (canon with `status: DRAFT` → triage as INFO/advisory). If the
+skill isn't available, spawn the check agent inline per the "Check procedure" in
+`$AUTOFEATURE_HOME/adapted/feature-patterns-audit.md` (`model: "sonnet"`). No `PATTERNS_FILE` →
+skip silently.
+
 ### 9c. Fix-First triage
 
 Collect all findings:
@@ -636,9 +655,14 @@ Read `$AUTOFEATURE_HOME/adapted/feature-ship.md`.
 1. Pre-flight (branch check, diff summary)
 2. Merge base branch (resolve any conflicts → emergency stop if not auto-resolvable)
 3. Final test-runner run — paste summary, do not claim passing without evidence
-4. Bisectable commits (one logical change per commit)
-5. Push
-6. Create PR via `gh pr create`
+4. Patterns write-back — if this run made a convention decision `PATTERNS_FILE` doesn't cover
+   (created a new canonical helper, standardized a new response case, introduced the first
+   dependency of a kind), append the dated Decisions-log line + section entry per the
+   "Write-back protocol" in `feature-patterns-audit.md`. **Additions only** — changing an
+   existing Canonical entry is flagged `⚖` in the PR body instead, never edited
+5. Bisectable commits (one logical change per commit)
+6. Push
+7. Create PR via `gh pr create`
 
 ### 10b. Cross-repo coordinated ship
 
@@ -671,6 +695,7 @@ Update `.autofeature/coordination.md` per repo as each ships.
 - Approved by user: M findings
 - Skipped (with reason): K findings
 - Security review: [skill summary or "n/a"]
+- Patterns check: [CONFORMS / N findings triaged / "n/a" — no patterns.md]
 - Simplify pass: [N improvements or "n/a"]
 
 ## Cross-repo
@@ -748,6 +773,7 @@ Files: N created, M modified
 Tests: K written, suite all passing
 Review: N auto-fixed, M approved, K skipped
 Security review: [N issues / "n/a"]
+Patterns: [conforms / N findings / N write-backs / "n/a"]
 Simplify: [N improvements / "n/a"]
 
 Feature Brief:  .autofeature/designs/[slug]-[date].md
@@ -789,6 +815,7 @@ This orchestrator reads these at runtime. Edit them to change behavior.
 | `feature-devex-check.md` | Developer experience check |
 | `feature-ship.md` | Commit, push, PR |
 | `feature-test-manifest.md` | Test Manifest format — emitted at Step 10.5 to document what was built (consumed by `/autofeature:test`) |
+| `feature-patterns-audit.md` | Repo coding canon — census methodology + patterns.md format; the pipeline reads `.autofeature/patterns.md` (Step 2a), passes it to specialists (5b/7b), checks the diff (9b2), writes back at ship (10a) |
 
 ### Agents (`$AUTOFEATURE_HOME/agents/`)
 | File | Purpose |

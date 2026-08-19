@@ -17,6 +17,7 @@ The autofeature pipeline invokes other installed skills at specific phases. This
 | `frontend-design` (skill) | Step 5 | when UI is added | Generates polished, non-generic UI for new components |
 | `security-review` (skill) | Step 7 | when scope hits security triggers | Real security audit beyond the inline checklist |
 | `simplify` (skill) | Step 7 | after Step 7 fixes | Final pass for reuse, quality, and dead code |
+| `autofeature:patterns` (command) | Steps 2, 5, 7 + ship | when `.autofeature/patterns.md` exists | Repo coding canon — specialists receive it (Canonical overrides sampling), review diff-checks against it, ship writes back new decisions |
 
 Note: `Plan` and `Explore` are built-in subagent_types invoked via the `Agent` tool. `frontend-design`, `security-review`, `simplify` are user-invocable skills invoked via the `Skill` tool.
 
@@ -119,11 +120,39 @@ Skill({
 
 Skip in `micro` scope tier — overkill for tiny changes.
 
+## Steps 2 / 7 / ship: repo coding canon (autofeature:patterns)
+
+`.autofeature/patterns.md` is the per-repo convention canon maintained by `/autofeature:patterns`
+(census → establish → enforce; methodology in `adapted/feature-patterns-audit.md`). It exists to fix
+the amplifier problem: "match the repo" makes specialists replicate whichever variant they sample,
+which in a drifted repo is usually the deprecated majority. Three pipeline hooks, all keyed on
+`PATTERNS_FILE` recorded during the Step 2 context scan:
+
+1. **Step 2 (context):** the Explore scan returns `.autofeature/patterns.md` + its DRAFT/ACTIVE
+   status as convention item #1.
+2. **Steps 5+7 (design + implement):** every specialist spawn appends the line
+   `Patterns file: [path] ([status]) — Canonical/Banned decisions override repo sampling; delegate
+   to its canonical-helper registry; where silent, match the repo.`
+3. **Step 7 (review):** run the diff conformance check alongside security-review, findings into the
+   same triage queue (DRAFT canon → advisory/INFO):
+
+```
+Skill({ skill: "autofeature:patterns", args: "check" })
+```
+
+4. **Ship:** write-back — a run that made a new convention decision appends it to patterns.md in
+   the same PR (additions only; changing an existing Canonical is flagged `⚖` in the PR body).
+
+No patterns.md in the repo → all four hooks skip silently; optionally suggest running
+`/autofeature:patterns` once at the end of the run. `establish` mode is never invoked from the
+pipeline — canon decisions are User Sovereignty territory.
+
 ## Order of operations within Step 7
 
 ```
 1. Spawn parallel review agents (Critical / Info / Testing / Design / DX)
 2. While they run: invoke security-review skill (if scope triggers)
+   + autofeature:patterns check (if .autofeature/patterns.md exists) — findings join the same queue
 3. Collect all findings into Fix-First triage queue
 4. AUTO-FIX what's mechanical
 5. ASK user about judgment calls (batched — one AskUserQuestion call)
@@ -146,6 +175,7 @@ Some skills are plugin-installed and may not be present. Before invoking, the or
 - If `frontend-design` skill isn't available → fall back to react-architect / react-native-architect handling the UI design
 - If `security-review` skill isn't available → fall back to the inline security checks in feature-review-checklist.md
 - If `simplify` skill isn't available → fall back to a final inline pass against feature-review-checklist.md's "reuse" section
+- If `autofeature:patterns` isn't available (partial install) → spawn the check inline per the "Check procedure" in `adapted/feature-patterns-audit.md`; the PATTERNS_FILE prompt line needs no skill at all
 - `Plan` and `Explore` subagents are built-in, always available
 
 The orchestrator can detect availability by checking the skills list in its system reminder (skills appear under "available-skills"). Don't try to invoke a skill not listed there.

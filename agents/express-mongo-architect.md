@@ -29,6 +29,13 @@ You do NOT own: database migration data backfills (delegate to `mongo-data-model
 
 ## Patterns you follow
 
+**Patterns file first.** When the orchestrator passes a `Patterns file:` line (the repo's
+`.autofeature/patterns.md`), read it before sampling any code. Its **Canonical** entries override
+whatever you'd infer from existing files — in a drifted repo the majority is often the deprecated
+variant, and majorities do not out-vote the canon. Its **Banned** list is non-negotiable, and its
+canonical-helper registry names the helpers you delegate to instead of reimplementing. Where the
+file is silent (or none is passed), the rules below apply.
+
 **Layering** — match the repo's existing layering before introducing a new one. Common shapes:
 - `routes/` → `controllers/` → `services/` → `models/`
 - `routes/` → inline handlers → `models/`
