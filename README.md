@@ -119,6 +119,81 @@ Credentials are never logged, written to the report, or committed. Failures can 
 
 ---
 
+## Mapping an award — `/autofeature:award-map`
+
+Maps one Australian modern award into `rosterio-compliance-service` so it can be priced and
+roster-checked, with every rule citing a clause and mechanically checkable against the award's own
+words.
+
+```
+/autofeature:award-map MA000003
+/autofeature:award-map MA000009 mode:automated
+/autofeature:award-map MA000003 resume
+```
+
+It is **enumeration-first**, and the ordering is the whole point. Mapping MA000004 took 95 commits
+because the axes along which gaps could hide were discovered one at a time, while the modelling was in
+flight — a clause marked `partial` hid the late-trading span, and a clause marked `modelled` hid time
+off instead of overtime pay. A word cannot bound a list; a count can.
+
+So this command transcribes the clause list and per-clause sub-clause counts from the Commission's
+consolidated PDF **first**, triages every clause against the closed rule vocabulary **second**, and
+stands up the eight closure axes **before** authoring anything. Their first run reports almost
+everything open, and that output is the work list — a denominator fixed before anyone reads the award
+for rules, which every later file burns down.
+
+Done is `npm run closure -- <CODE>` returning zero on all eight axes. Not an opinion, and not an
+agent's answer to "are there gaps?", which is the question that used to have a new answer every time
+it was asked.
+
+**But closure proves coverage, not correctness.** It proves a clause was read and a rule is reachable —
+it cannot prove a rule's day, time, priority or threshold says what the clause it cites actually says. A
+transposed day passes every closure check cleanly. That gap is closed by a separate step,
+`/autofeature:award-verify`, run automatically as Step 7.5: two agents independently re-derive each
+predicate-bearing row from its clause text alone, blind to what shipped and to each other, and a third
+argues the shipped row is wrong only where they disagree. It's re-runnable on its own too, scoped to
+just the clauses a wage review or an award variation touched:
+
+```
+/autofeature:award-verify MA000003
+/autofeature:award-verify MA000003 clauses: 15,15A
+```
+
+A `high`-confidence finding blocks. This raises confidence — it doesn't retire the risk, since
+independent agents can still share a blind spot on an unusual clause, which is why the pipeline's third
+hard checkpoint is a human reading the review pack before anything ships, not the closure run on its own.
+
+**Neither closure nor verification is a subscription.** Both are point-in-time. If the FWC varies an
+award after mapping, nothing here notices on its own. `/autofeature:award-drift` is the manual check:
+re-fetches the award's text, diffs it clause-by-clause against what's stored, names exactly which rows
+are affected, and flags when the pay database itself may need a fresh workbook — the text diff can't
+see that side, since the workbooks have no fetch script at all. Run it when you have reason to suspect a
+variation landed — it's meant to be triggered, not scheduled.
+
+```
+/autofeature:award-drift MA000003
+```
+
+When something has moved, **re-authoring never deletes the superseded row.** Every rule already carries
+`operative_from`/`operative_to`, and the engine already resolves shifts against them, so a shift dated
+before the variation is supposed to keep pricing against the old reading. The fix closes the old row's
+window and adds a new one, both living in the same source file — a blind delete-and-reinsert would
+silently break every historical or backpay calculation touching that clause.
+
+**Merging the PR is not going live.** There's one deployed database, not a staging and a production
+one, so the first time an award's rules load remotely, it's directly into what prices real shifts.
+Promotion is its own gated step: connect to the deployed database, re-run `verify`, `award-verify` and
+`closure` against it — a pass locally is not evidence of a pass remotely — and only after the user
+confirms those results is the award considered live.
+
+Four checkpoints stop the run even in `mode:automated` — the transcription, the triage, the sign-off
+before shipping, and promotion itself — because they're the steps carrying judgement, deciding whether
+the mapping is fit to be relied on, or crossing into something real customers price shifts against.
+Reads `awards/gap-axes.md`, `awards/rule-tables.md`, `awards/service-conventions.md` and
+`awards/verify-workflow.md`.
+
+---
+
 ## File Structure
 
 ```
@@ -136,8 +211,16 @@ autofeature/
 │   ├── feature-plan.md
 │   ├── feature-review.md
 │   └── feature-ship.md
+├── awards/                        ← award-mapping domain reference
+│   ├── gap-axes.md                ← the eight closure axes; how a mapping finishes
+│   ├── rule-tables.md             ← what the rule_* vocabulary can and cannot say
+│   ├── service-conventions.md     ← rosterio-compliance-service conventions
+│   └── verify-workflow.md         ← semantic verification: coverage vs. correctness
 └── .claude/commands/
-    └── autofeature.md             ← the Claude Code command
+    ├── autofeature.md             ← the Claude Code command
+    ├── award-map.md               ← award mapping
+    ├── award-verify.md            ← semantic verification, standalone or as Step 7.5
+    └── award-drift.md             ← manual check: has the award's text moved?
 ```
 
 **Rule:** Edit files in `adapted/` and `.claude/commands/`. Never edit `source/` files — they're the baseline for tracking what changed.

@@ -10,6 +10,7 @@ Specialist subagent prompts spawned by the autofeature orchestrator. Each file i
 | [`react-architect`](react-architect.md) | React web (Vite/Next/CRA/Remix) | Web frontend changes |
 | [`react-native-architect`](react-native-architect.md) | React Native (Expo or bare) | Mobile changes |
 | [`swift-architect`](swift-architect.md) | Swift native (iOS, macOS, watchOS) | Native Apple platform changes |
+| [`kotlin-compose-architect`](kotlin-compose-architect.md) | Native Android (Kotlin + Jetpack Compose) | Android changes — tuned for the Ritchies app's anti-framework, iOS-parity grain (no Retrofit/Koin/repository/nav-graph). Cites neutral `rcosteira79/android-skills` for idiom depth. |
 | [`mongo-data-modeler`](mongo-data-modeler.md) | MongoDB schema + queries + indexes | New collection, schema change, index proposal, migration, or query plan concern |
 | [`api-contract-broker`](api-contract-broker.md) | Cross-repo coordination | Backend + frontend(s) touched in same run |
 | [`product-strategist`](product-strategist.md) | Product review (CEO / PM / flow-walker) | Pre-build product review (Step 4.5) and standalone `/autofeature:product-review` |

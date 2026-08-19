@@ -1,0 +1,461 @@
+---
+name: award-gap-axes
+purpose: The closure axes that make "are there gaps?" a query instead of a question. Read before mapping any award.
+status: CUSTOM
+---
+
+# Gap axes — how an award mapping finishes
+
+## The failure this file exists to prevent
+
+MA000004 took 95 commits, and the gap waves in that history were not random.
+Each wave arrived when a **new axis of enumeration** was introduced, and the
+previous axis turned out to have been bounded by a word rather than by a count.
+The commit titles say it plainly: *"Rebuild the coverage inventory from the award
+text, and find what modelled hid"*, then *"Itemise the award to sub-clause level,
+and fail the build when it is not"*, then *"Read the last 74, so no row carries a
+status it did not earn"*, then *"Model the last of MA000004: nothing is
+not_modelled"*.
+
+Two concrete losses, both recorded in `test/coverage.test.ts`:
+
+- **cl 15.2** (the late-trading span) sat inside clause 15 while clause 15 was
+  marked `partial`. Every evening at a store trading past 6.00 pm on a weekend
+  priced as overtime when it was ordinary time at a penalty.
+- **cl 21.3** (time off instead of payment for overtime, a whole mechanism)
+  sat inside clause 21 while clause 21 was marked `modelled` at clause level and
+  never itemised. It appeared on no gap list at any point.
+
+The lesson is in that file's own words: **a word cannot be trusted to bound a
+list, a count can.**
+
+So the discovery of the axes is what looped, not the modelling. The axes are now
+known. A new award gets all of them on day one, and gap discovery is finite
+because every axis is enumerated from a source outside the thing being checked.
+
+## Three kinds of finding, and only one is a defect
+
+Classify **every** finding the moment it is found. Perpetual fixing happens when
+the second and third categories get triaged as the first.
+
+| Kind | What it is | What it opens |
+|---|---|---|
+| **Unread** | a clause nobody opened, a published row no rule reaches, an allowance nobody implemented | Work. The axes below close this class completely. |
+| **Inexpressible** | a mechanic the closed rule vocabulary has no field for | A ledger entry and a refusal. NOT a fix. Chasing these is an infinite backlog because there is always another one. |
+| **Open reading** | the award is genuinely ambiguous and the market does not agree | A per-employer interpretation setting. See `docs/interpretation-settings.md` in the service. |
+
+## The eight axes
+
+Each axis enumerates a universe from **outside** the database, then requires
+every member of it to carry a disposition. When all eight return empty, "are
+there gaps" has a mechanical answer, and asking it again returns the same answer.
+
+### 1. Every clause of the award has a coverage row
+
+Universe: the award's table of contents, transcribed from the Commission's
+consolidated PDF into the enumeration manifest (below). Not read out of the
+database, because a clause forgotten in both would agree with itself.
+
+Also checks the reverse, that no row claims a clause the award does not contain.
+
+### 2. Every sub-clause exists, against a transcribed count
+
+Universe: a per-clause count of parts, transcribed from the same PDF. This is
+the axis that would have caught cl 21.3 and cl 15.2, and it is the single most
+valuable one. Status is irrelevant here. A clause marked `modelled` must account
+for every one of its parts exactly as a `partial` one must.
+
+Related invariants, all already enforced:
+- no row may carry a note beginning `Inherited from clause` (an inherited status
+  is a guess wearing the shape of an answer)
+- no row may be titled `Clause 5.9`, that means nobody found its heading
+- every sub-clause row must carry `source = 'award_text'`
+
+### 3. Every published penalty row is reachable, and every condition resolves
+
+Universe: `fwc_penalty` rows for the award where `is_heading = false`.
+
+Both directions. A condition naming no published row is a typo whose symptom is
+a condition that never fires, quietly leaving every Saturday hour at the ordinary
+rate. A published row no condition can reach is the omission the typo check
+cannot see. `scripts/verify.ts` checks 1 and 4.
+
+### 4. Every published allowance is implemented, and none is invented
+
+Universe: `fwc_wage_allowance` and `fwc_expense_allowance` for the award.
+
+The strongest completeness check in the service, because **both sides are data**.
+One is mirrored from the Commission and never edited, the other is what the
+engine actually pays. An allowance published and not implemented is a silent
+underpayment every time it is earned.
+
+### 5. Nothing claims to model a clause nobody read
+
+Universe: `rule_coverage` rows for the award.
+
+`status = 'modelled'` with `source <> 'award_text'` is banned. This is the
+invariant that would have caught cl 11.3, which was recorded from recollection as
+"casual conversion" when it is the 1.5 hour engagement for a secondary school
+student, and while it was wrong the engine reported a breach on a roster the
+award expressly permits.
+
+Every row must also carry a note of real substance. `modelled` with no note is an
+assertion nobody can check and `not_modelled` with no note is a shrug.
+
+### 6. Every rule's text is the award's own words
+
+Universe: every `rule_*` row that carries `clauses`.
+
+`verify.ts` check 9 resolves each citation against `fwc_clause` and requires the
+transcribed `clause_text` to appear verbatim in it. Statutory citations are
+checked against the Act's text, held in the same table under award code `FWA`.
+
+The first run of this check on retail found cl 4.7 did not exist, cl 35's three
+obligations cited clause 34's numbering, and cl 5.1's transcription had dropped
+the phrase that limits when an individual flexibility arrangement is available.
+
+### 7. Every modelled engine is reachable from a route
+
+Universe: the engine modules under `src/engine/`.
+
+Nine of them were written, unit-tested, recorded as `modelled` in the coverage
+ledger, and had no route. Dead code behind a green suite, invisible from both
+directions at once, because a unit test proves the arithmetic and says nothing
+about whether a caller can get at it. `test/reachable.test.ts`.
+
+### 8. Every residual carries a disposition
+
+Universe: every `rule_coverage` row not marked `modelled`.
+
+Each one must begin with one of two words:
+
+- **`Pending:`** solvable later, usually by collecting a fact the product does
+  not yet hold. This is the backlog, and it is finite and listed.
+
+  **It must carry the design for collecting it.** "Needs a fact we don't hold" is
+  not a disposition, it is the absence of one. Say which existing channel carries
+  the fact and under what key, or — where neither fits — which model, field and
+  screen have to exist. A `Pending:` that does not say what to build is a
+  clause nobody can schedule, and 114 of those is not a backlog, it is a list of
+  places somebody stopped.
+- **`By design:`** correctly ends at an assertion, an evidence contract, or the
+  boundary of what any rostering system can know. Closing one would mean
+  pretending to verify a judgement or a fact held outside the system, which is
+  worse than the gap.
+
+Which channel carries a `Pending:`, and what to do when none of them can, is
+`data-requirements.md`. A backlog nobody can total is the thing that let
+MA000003 ship 114 items behind eight green zeroes.
+
+**And it must name the limb.** Axis 2 itemises to the sub-clause because that is
+where the award numbers things, and then it stops. The award does not: cl 20.2
+runs `(a)(i)`, `(a)(ii)`, `(a)(iii)`, `(b)`, `(c)`, `(d)`, and all six sit in one
+coverage row. That is the cl 21.3 shape one level further down, and it is where
+the under-paying gaps actually turn out to live.
+
+Enumerating every paragraph is the wrong fix. Retail has 584 of them against 256
+coverage rows, and a row each would bury the ledger in prose that is already
+inside a modelled rule. The targeted fix is that a residual on a clause **with
+internal structure** has to say which limb it is missing:
+
+> `Pending:` cl 20.2 — the 38-hour and 11-hour limbs are modelled. The
+> five-days-in-a-week limb and the three limbs keyed to rostered start and finish
+> times need the agreed pattern.
+
+against the version that passes every other check and says nothing:
+
+> `Pending:` cl 20.2 — needs the agreed pattern.
+
+The second cannot be scheduled, cannot be reviewed, and cannot be told from a
+clause where one limb of six is open. The paragraph markers come from the
+clause's own stored text, so this costs no second transcription and cannot drift
+from the award.
+
+It discriminates, which is what every check here has to earn before it is worth
+running: the award authored carefully had 5 such clauses and all 5 named their
+limbs; the award authored fast had 35 and 1 did.
+
+## Accounted is not implemented, and "closed" hid the difference
+
+The single most expensive lesson from mapping the second award, and it is a flaw
+in these axes rather than in that mapping.
+
+Axis 8 requires a residual to carry a **disposition**. It does not require the
+residual to be **closed**, and it cannot: `Pending:` is a legitimate state during
+a mapping and `By design:` is a legitimate state forever. So an award passes all
+eight axes — every clause read, every published rate reachable, every rule
+quoting the award's own words — while implementing almost none of itself.
+
+MA000003 did exactly that:
+
+| award | rows | modelled | `Pending:` | `By design:` |
+|---|---|---|---|---|
+| MA000004 | 256 | 179 | **1** | 15 |
+| MA000003 | 199 | 32 | **114** | 23 |
+
+Both were reported "closed". One had a backlog of one item and the other of 114,
+and the word carried a claim the axes never made. Anyone reading "closed on all
+eight axes" takes away that the award is done. It meant the award had been
+*read*.
+
+**There is one outcome, and accounted is not it.**
+
+- **IMPLEMENTED** — the outcome. Every clause read, every published rate
+  reachable, every rule quoting the award, and nothing left that could be
+  modelled and is not.
+- **ACCOUNTED** — a step on the way, and a *diagnosis* when you are not there
+  yet. The eight axes at zero means the award has been fully read, so the
+  backlog in front of you is complete rather than a floor. That is worth knowing
+  and it is not a result.
+
+The first attempt at this fix printed both as a two-line scoreboard. That was
+still wrong: two lines of equal weight read as two scores, the reassuring one
+came first, and a reader takes `ACCOUNTED yes` and stops. Accounted is a
+precondition — you cannot build what you have not read — so it belongs in the
+explanation of an unfinished award, never beside the outcome.
+
+### The row count is the gate. The clause count is the shape.
+
+`closure` prints both — *114 Pending: across 27 clauses* — because either number
+alone misleads, in opposite directions.
+
+The row count overstates the work. Schedule C contributes ten rows, C.1 to C.10,
+for one supported-wage implementation; cl 18 contributes nine for one accident-pay
+tracker. "114 pending" sounds like 114 tasks and is nothing like it, which is how
+a backlog gets described as impossible when the honest description is *27 areas,
+two of which can under-pay, both waiting on the same product change.*
+
+**But the verdict keys on rows and must never key on clauses.** A clause is
+finished only when every one of its rows is. That is precisely what the
+sub-clause axis exists to enforce, and the reason it exists is cl 21.3 — an
+entire time-off-in-lieu mechanism that sat inside a clause marked `modelled` at
+clause level and appeared on no gap list at any point.
+
+Deciding "done" at clause level is that failure with a different name. Use the
+clause count to say how big the work is; never to say it is over.
+
+`closure` now prints one verdict and carries the same three states in its exit
+code: **0 implemented, 1 accounted with work remaining, 2 not accounted.** A zero
+exit on an unfinished award is the word "closed" again in numeric form.
+
+`By design:` is deliberately **not** in the target. Driving it to zero would mean
+pretending to verify judgements — whether an agreement was genuine, whether a
+change is "major", whether an employee is better off overall. Those correctly end
+at an evidence contract. `Pending:` is the backlog, it is finite, and it is the
+number to drive down.
+
+The retail figure is the proof that zero is reachable rather than aspirational.
+It sat at 1 while the method was being written, and nobody noticed the measure
+was missing because the award it was written against had already met it.
+
+A mapping is honestly *unfinished* part way through, and saying so costs nothing.
+What it may never do is report a milestone in words a reader hears as a result.
+
+A new residual is classified at the moment it is written, never left for an audit
+to find.
+
+## A green check must say what it examined
+
+The single most repeated failure in this method's history, and it has now
+appeared in every layer of it.
+
+`verify.ts` reported `no text 150` — accurate, easy to read past, and it meant
+150 citations an employer sees were being checked against nothing. Closure axis 3
+joined a rule table and reported **0 open of 616** for an award with no rules at
+all. A citation-coverage query iterated a Record as an array, found zero keys, and
+printed `UNMAPPED: (none)`. A migration test seeded a row that silently failed a
+check constraint, so the `ALTER` it was proving ran against an empty table and
+succeeded. A test harness answered every model with a list of users, so a date
+guard discarded them and the assertion passed for the wrong reason.
+
+Every one of those printed a number that looked like success.
+
+**So a check reports the size of the universe it examined, next to the count of
+what failed, and a universe of zero is never a pass.** `closure` prints an
+`examined` column and names any axis whose universe was empty. Anything that
+gates a step does the same.
+
+Two corollaries worth stating because both cost time here:
+
+- **A universe defined by the thing being checked is not a universe.** Axis 3
+  reported zero because it joined to `rule_clause_group`; the fix was to stop
+  joining. Any check that narrows its own input by the artefact under test can
+  only ever confirm what is already there.
+- **A clean probe is a claim about your query too.** `CREATE TABLE $t` missed
+  `CREATE TABLE IF NOT EXISTS` and reported two tables unregistered that were
+  registered. A search of `rules-load.sh` for a table name missed the file being
+  listed by *filename*. A reachability query read `fwc_penalty.rate` where the
+  column that mattered was `penalty_calculated_value`, and returned a reassuring
+  zero across every award. Before reporting a finding from a query, check the
+  query can find the thing it says is absent.
+
+## The enumeration manifest
+
+Axes 1 and 2 are the only ones whose universe cannot be derived mechanically.
+They come from a human reading the Commission's consolidated PDF. That
+transcription is the artefact everything else depends on, so it is committed,
+reviewable, and pinned to a compilation date.
+
+Create `src/awards/<CODE>/enumeration.ts`:
+
+```ts
+/**
+ * <CODE> — the award's own table of contents.
+ *
+ * Transcribed from the Fair Work Commission's consolidated PDF,
+ * compilation of <DATE>, retrieved <DATE> from <URL>.
+ *
+ * Hardcoded ON PURPOSE and held outside the database. A clause forgotten in
+ * both the coverage table and this list would agree with itself and every
+ * check would pass.
+ */
+export const CLAUSES: string[] = [ /* "1", "2", ... "A", "B", ... */ ];
+
+/**
+ * How many parts each clause has.
+ *
+ * A word cannot be trusted to bound a list. A count can. This is the axis that
+ * would have caught cl 21.3 in MA000004, where a clause marked `modelled` hid
+ * a whole mechanism.
+ */
+export const SUBCLAUSE_COUNT: Record<string, number> = { /* "1": 3, ... */ };
+```
+
+`test/coverage.test.ts` and `scripts/closure.ts` both read this file. The
+invariant that the list comes from outside the database is preserved, because a
+committed TypeScript file is outside the database.
+
+## One command, per award
+
+The eight axes exist today but are split across two places, four inside
+`scripts/verify.ts` (which already takes every award) and four inside
+`test/coverage.test.ts` (hardcoded to MA000004 and only reachable via
+`npm test`). There is no single thing anyone can run that answers "are there gaps
+in this award" and gives the same answer to whoever asks.
+
+**That split is why the question kept having a new answer.** Ask an agent and it
+goes looking, and looking finds whatever it happens to look at.
+
+So an award-mapping run stands up `scripts/closure.ts`, which takes an award
+code, runs all eight, and prints one table:
+
+```
+$ npm run closure -- MA000003
+
+  axis                                       open
+  1  clauses without a coverage row              0
+  2  sub-clauses missing against the count       0
+  3  published rows no condition reaches         0
+  4  published allowances not implemented        0
+  5  rows claiming modelled without award_text   0
+  6  rules whose text is not the award's words   0
+  7  modelled engines with no route              0
+  8  residuals with no disposition               0
+
+  MA000003: closed.
+```
+
+Non-zero anywhere means it prints the list. Zero everywhere is the definition of
+done, and it is the only definition of done a mapping run is permitted to use.
+
+**A clause can carry more than one row once an award has been re-authored after
+a variation** — see "Re-authoring after a variation" in `service-conventions.md`.
+Axes answering "is the current reading correct" (3, 4, 5, 6) must filter
+`operative_to IS NULL`; axes answering "was this clause ever accounted for"
+(1, 2, 8) must not — a clause doesn't stop being read because its reading
+later changed. Getting this backwards reports either false ambiguity or a
+false coverage gap on every award that's ever been re-mapped.
+
+## What the axes cannot catch, and what does
+
+They cannot catch a clause that was read, cited, and transcribed correctly but
+wired to the wrong rule — a `Saturday` condition sitting on `days_of_week = {0}`
+passes every axis here, because every axis checks *existence and reachability*,
+never *does the predicate say what the clause says*. That is a different
+question, and it does not get a ninth axis, because it can't be answered with a
+boolean the way the eight above can.
+
+Two things answer it instead, and they are deliberately not the same mechanism:
+
+- **`awards/verify-workflow.md`** (run as Step 7.5 of `award-map.md`, or
+  standalone via `/autofeature:award-verify`) — independent re-derivation of
+  every predicate-bearing row from its clause text alone, diffed against what
+  shipped, with a third adversarial pass only where two blind readers disagree
+  with it. This is the closest thing to a mechanical check the correctness
+  question gets, and it covers every row, not a sample.
+- **The hand-checked scenario suite** (Step 7) — for the class of bug the row-by-
+  row check can't see at all: several individually-correct rules interacting
+  wrongly over one real shift, a boundary, a priority resolving in a way nobody
+  anticipated.
+
+Both raise confidence. Neither is a proof, and the closure table should never be
+presented as one — see the sign-off gate at Step 8 of `award-map.md`.
+
+### And the result has to be a record, not a report
+
+Verification ran, and wrote its findings to a markdown file in a working
+directory. So `closure` — the command everyone actually reads — had no way to
+know whether an award had ever been checked, and printed `IMPLEMENTED` the same
+for a verified award and a never-verified one.
+
+`verification_run` holds it now, `award-verify`'s last step writes it, and
+`closure` prints two verdicts instead of one:
+
+```
+  coverage      IMPLEMENTED — ... nothing left that could be modelled and is not.
+  correctness   NEVER VERIFIED — 73 predicate row(s) have not been re-derived.
+```
+
+It hashes the predicate rows themselves rather than a commit, so it lapses to
+`STALE` when and only when the thing that was verified moves — a commit hash
+would mark every award stale on every unrelated change, and an alarm that always
+fires is one nobody reads. `clause_text` is outside the hash on purpose:
+lengthening a transcription is what a verification run ASKS for, and hashing it
+would mark an award stale for having acted on the report.
+
+This is the fourth time the same lesson has been paid for. `closed` meant read.
+`accounted` meant the backlog is complete. `implemented` means nothing is
+unbuilt. Each was taken for "done" by the next person to look. **When a verdict
+keeps being over-read, the fix is never a better word — it is a record the
+verdict has to consult.**
+
+### And none of the three looks at the OTHER award
+
+Every mechanism above is scoped to the award being mapped. The axes enumerate
+its clauses, the verify workflow re-derives its predicates, the scenario suite
+prices its shifts. The award already in production — the one quoting real money
+to real employers — is not in any of their universes.
+
+Its own tests do not close that gap either, because they assert what somebody
+thought to assert. A mapping run touches shared things: the engine, the schema,
+the closed vocabularies, the loaders. Adding a classification predicate to
+`rule_condition` for one award changes a column every query for the other one
+reads. What moves under that is, by construction, the combination nobody wrote
+an assertion for.
+
+**`test/snapshot.test.ts`** answers it, and it is a different question again:
+not "is this answer right" but "has this answer moved". It prices the whole
+cross-product per award — classification × employment type × age × shift shape,
+down to the segment, with refusals recorded as answers because an award that
+starts pricing what it used to refuse is the bigger regression — and diffs
+against a fixture committed before the mapping began.
+
+It cannot say an answer is correct; a wrong answer snapshots as cleanly as a
+right one. It says nothing changed without somebody deciding it should, which no
+amount of careful assertion-writing scales to. Step 0.4b writes it, Step 8 reads
+it, and the rule at both ends is that the diff gets read rather than
+regenerated.
+
+Two things it took a real run to learn, both worth carrying:
+
+- **The matrix has to cover every engine that answers money, not just the priced
+  shift.** It began as pricing alone, and proving the last mapping caused no
+  regression then needed termination and leave checked by hand, over service
+  years and age — dimensions a shift does not carry. Whatever an award answers
+  and an employer acts on belongs in the matrix.
+- **A uniform area is the failure mode wearing the guard's own clothes.** All 384
+  leave cells returned one refusal because the harness passed an input the engine
+  could not use. It compared clean, and "leave did not change" was true and
+  meant nothing. Check each area for VARIETY rather than volume, and require a
+  genuinely uniform area — an award that models no leave at all — to be DECLARED
+  in the fixture, so it stays a visible fact rather than a silent pass.
