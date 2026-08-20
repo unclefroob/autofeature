@@ -116,15 +116,15 @@ Create the feature branch in the API repo and in each **chosen** client repo (sa
 ## Override — Step 7b: implementation (per architect, parallel)
 
 For the API and each chosen client, spawn the same architect in `implement` mode, all in one message. **Pass the Design Flow Map (`.autofeature/designs/<feature>-design-<date>.md`) + its screenshots to every UI architect** — they must build every screen, state, and access-level variant it enumerates, not just the happy path. Reinforce the per-repo guardrails from `ritchies/conventions.md`, especially:
-- **API:** enforce **route → controller → service → model** — business logic in `src/services/<domain>Service.ts` (HTTP-agnostic function module), controllers stay thin (inline zod parse → resolve access → call service → shape response → `try/catch → next`). **Reuse existing services** (`auth/resolver`, `auth/audit`, `chat/service`, …) and **extract shared helpers** into `src/services/*` rather than duplicating (kill the duplicated `initialsOf`/`relativeTime`). `errorHandler` stays last in `app.ts`; scoped caps checked in service/handler (not `requireCapability`). Write both the service unit test and the route supertest. CI gates on **typecheck + jest + build** — all must pass.
-- **Web:** one `lib/<domain>.ts` (axios + types + helpers), page in `pages/app|admin/`, `<Route>` + `RequireCapability` in `App.tsx`, capability key in `lib/access.ts`. **No test framework** unless the Brief asks.
+- **API:** enforce **route → controller → service → model** — business logic in `src/services/<domain>Service.ts` (HTTP-agnostic function module), controllers stay thin (inline zod parse → resolve access → call service → shape response → `try/catch → next`). **Reuse existing services** (`auth/resolver`, `auth/audit`, `chat/service`, `announcementsService`, `services/format` — the api-standards refactor landed, so import rather than re-inline) and **extract shared helpers** into `src/services/*` rather than duplicating. New capability keys need `catalog:sync` run per environment before any preset holds them. `errorHandler` stays last in `app.ts`; route gates via `requireCapabilityHeld`/`requireAnyCapabilityHeld`; scoped caps checked in service/handler via `can()`. Write both the service unit test and the route supertest. CI gates on **typecheck + jest + build** — all must pass.
+- **Web:** one `lib/<domain>.ts` (axios + types + helpers), page in `pages/app|admin/`, `<Route>` + `RequireCapability` in `App.tsx`, capability key in `lib/access.ts`. Follow the **settled-result idiom** (loading derived, no sync setState in effects — the lint rule is an error). Vitest exists: give new `lib/` logic a test. Accents via `lib/brand.ts` + `onBrand()`, marks via `components/Logo.tsx`.
 - **iOS:** `Features/<Name>/` with `@Observable <Name>Store`, `(level, capabilities, onClose)` view, wire into `DashboardView` + `AccessModel`; `xcodegen generate` after adding files; Swift Testing decode test.
 - **Android:** the `kotlin-compose-architect` grain — no Retrofit/Koin/repository/nav-graph; `remember { <Feature>Store(scope) }`; wire into `DashboardScreen` `when` + `AccessModel`; mirror iOS.
 
 ## Override — Step 8: verification (honest, per repo)
 
 - **API:** run the jest suite (base test-runner) — it must be green; typecheck + build too (that's the CI gate).
-- **Web:** typecheck + `vite build`. There are no unit tests to run; do not claim any.
+- **Web:** `npm run typecheck` + `npm run lint` (0 errors) + `npm test` (vitest) + `vite build` — all four, locally; SWA CI only builds.
 - **iOS:** prefer `xcodebuild`; if unavailable, `swiftc -typecheck` and report "compile-checked only." Never claim "tested on simulator" for a type-check. Note that adding/moving files needs a real Xcode build (`swiftc` is blind to the project file).
 - **Android:** this environment **can** build — try `:app:assembleDebug` with SDK + JDK17 + gradle-8.9 (see the architect's Verification section). If the toolchain isn't present, say "compile-checked only / NOT built." Never inflate.
 
@@ -141,4 +141,4 @@ Interrogation, scope-gate, product-review, planning, review fan-out (+ `security
 
 ## Brand
 
-For any UI surface, defer to the `ritchies-design` skill (`~/.claude/skills/ritchies-design/`) and reuse its tokens/primitives. Remember the brand-blue split (web `#002491`, mobile `#0039A6`) and that mobile bundles no brand fonts — surface those as decisions rather than silently picking one.
+For any UI surface, defer to the `ritchies-design` skill (`~/.claude/skills/ritchies-design/`) and reuse its tokens/primitives; the corporate style guide V15 is the final authority and every client is on `#0039A6` now. Follow `ritchies/conventions.md`'s Brand standard and UX state standard sections: sourced accents with computed foregrounds, wordmark/R-mark/badge used in their proper places, SOON treatment for unwired tiles, no invented counts, loading/failed/empty always distinguishable with a visible retry.
