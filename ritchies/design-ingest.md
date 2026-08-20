@@ -80,5 +80,5 @@ After ship, verify the built app renders the design's flows. Reuse the `adapted/
 - Advisory only: hand divergences back to the user or into a follow-up run; do not silently rewrite the design or the app to force a match. Brand/token exactness defers to the `ritchies-design` skill.
 
 ## Notes
-- The mockups are already brand-styled, but architects still take tokens from the `ritchies-design` skill (the brand-blue split `#002491` web vs `#0039A6` mobile still applies).
+- The mockups are already brand-styled, but architects still take tokens from the `ritchies-design` skill; every client is on `#0039A6` now (the old web/mobile blue split is resolved), and the style guide V15 is the final authority where a mockup and the skill disagree.
 - Keep screenshots in `.autofeature/designs/design-shots/<feature>/` so the Flow Map, the PR, and the parity check all reference the same images.
