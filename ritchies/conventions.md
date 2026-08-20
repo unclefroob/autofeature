@@ -92,7 +92,8 @@ The historic web/mobile blue split is RESOLVED: every client uses **`#0039A6`** 
 - **Foreground is computed, never assumed.** `onBrand()` / `Theme.Colors.on()` / `onAccent()` pick white or ink by WCAG contrast. Half the guide's palette fails white text; hardcoding `.white` on an accent is a bug.
 - **Header gradient** is brand → `#00266E` everywhere (web `from-brand to-brand-800`, iOS `headerGradientTop/Bottom`, Android `HeaderTop/HeaderBottom`).
 - **Honesty rules.** Tiles/nav rows that don't route render muted with a SOON tag, driven by the wiring set that lives BESIDE each client's router (web `!!tile.to`, iOS `DashboardView.wiredTiles`, Android `WiredTiles`) — wire the router and the set together. **Never put an invented number in a tile sub or badge**; counts come from the API or don't appear.
-- **Residual mismatch to flag, not fix silently:** web still ships Fraunces/Inter (tailwind `display` font + Google Fonts load) while the guide's stack is Gibson/Helvetica/Arial with no serif anywhere; the mobile splash radial `#1257CE` is consistent across both apps but not guide-sourced. If a feature touches these, surface the decision.
+- **Type.** The guide's stack (pp20-23) is Gibson (website), Helvetica Neue (external), Arial (internal) — **no serif exists in the identity**. Web's `display` stack is `Gibson / Helvetica Neue / Helvetica / Inter / Arial` (licensed faces lead and render only where installed; Inter is the shipped stand-in, and `brandAssets.test.ts` fails any reintroduced serif or Fraunces). Mobile bundles no fonts by design — system faces until Ritchies supply a Gibson licence; do not bundle a paid face without one.
+- **Residual mismatch to flag, not fix silently:** the mobile splash radial `#1257CE` is consistent across both apps but not guide-sourced. If a feature touches it, surface the decision.
 
 ## UX state standard (all clients)
 
