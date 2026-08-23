@@ -119,6 +119,40 @@ Credentials are never logged, written to the report, or committed. Failures can 
 
 ---
 
+## Shaping a backend — `/autofeature:backend-api-skills`
+
+One command for the shape of a backend API, rather than only for features that go into one.
+
+```
+/autofeature:backend-api-skills                    # audit, then offer the fix
+/autofeature:backend-api-skills audit              # report only, writes nothing
+/autofeature:backend-api-skills create             # greenfield skeleton
+/autofeature:backend-api-skills create invoices    # one correctly-shaped domain slice
+/autofeature:backend-api-skills fix all            # behaviour-preserving refactor
+```
+
+The standard it enforces is `route → controller → service → model`, and its Iron Law is that
+**business logic lives in a layer that does not know HTTP exists** — the compliance test being
+whether every business rule can be exercised by a unit test that never builds a request. Around
+that sit the layer contracts (explicit MAY / MUST NOT per layer), reuse-before-extract, the split
+between route-level guards and resource-scoped authorization, and a two-tier test contract that
+puts most coverage in fast service tests.
+
+**It detects the stack rather than assuming one.** Express+Mongoose is the reference
+implementation, but it reads the repo's actual framework, ORM, validator and test runner and maps
+the four layers onto them — so the audit's tells are `prisma.` on a Prisma repo and
+`getRepository(` on TypeORM, and ambiguous detection stops the run instead of guessing.
+
+`fix` mode is gated on **identical-green**: the pre-existing route suite is the behaviour contract,
+so every one of those tests must pass *unchanged* and the count must match. New service unit tests
+add to the total; a pre-existing test that had to be edited means behaviour changed, and the fix
+gets reverted rather than the test rewritten. No green baseline, no refactor.
+
+`/autofeature:api-standards` still works — it is now a thin alias that forwards here with the
+Ritchies profile pre-selected.
+
+---
+
 ## Mapping an award — `/autofeature:award-map`
 
 Maps one Australian modern award into `rosterio-compliance-service` so it can be priced and
@@ -216,8 +250,13 @@ autofeature/
 │   ├── rule-tables.md             ← what the rule_* vocabulary can and cannot say
 │   ├── service-conventions.md     ← rosterio-compliance-service conventions
 │   └── verify-workflow.md         ← semantic verification: coverage vs. correctness
+├── backend/                       ← the portable backend API standard
+│   ├── api-standard.md            ← the layering law + the V1-V14 violation catalogue
+│   ├── stack-profiles.md          ← detect the stack, map the four layers onto it
+│   └── scaffold.md                ← create-mode blueprints (skeleton · domain slice)
 └── .claude/commands/
     ├── autofeature.md             ← the Claude Code command
+    ├── backend-api-skills.md      ← audit / create / fix a backend's shape
     ├── award-map.md               ← award mapping
     ├── award-verify.md            ← semantic verification, standalone or as Step 7.5
     └── award-drift.md             ← manual check: has the award's text moved?
