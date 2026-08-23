@@ -6,7 +6,9 @@ status: CUSTOM
 
 # Ritchies Design Ingestion
 
-Ritchies features arrive as **Claude-design HTML exports**, and the real spec — the screens, the per-role/per-level variants, the states, the flow between them — is only legible when the HTML is **rendered**, not when the markup is read as text. These exports are large (often >1 MB), JS-driven, and use non-semantic markup, so grepping the DOM misses most of the flow. **Always render.**
+Ritchies features arrive as **Claude-design HTML exports**, and the real spec — the screens, the per-role/per-level variants, the states, the flow between them — is only legible when the HTML is **rendered**, not when the markup is read as text. These exports are large (often >1 MB), JS-driven, and use non-semantic markup, so grepping the DOM misses most of the flow. **Render when you can.**
+
+**When you cannot render.** Chrome DevTools MCP frequently fails to launch a browser on this machine. Say so rather than quietly skipping the design, then fall back to reading the `.dc.html` as text: it is a single-file app whose content lives in named arrays and boolean section flags, usually in the last third of the file — a row list like `adminRows`, a section flag like `sc.showAdmin`, per-panel flags like `admIsAudit` / `admIsCompliance` / `admIsExport`. Grep for the row or section names the user mentioned, then read the surrounding block. That is enough to diff **copy, row order, and which panels exist** — the whole L7 system-admin gap list was produced this way. It is **not** enough to judge layout, spacing, or which states are actually reachable, so mark the Flow Map's per-screen states **unverified**, and say plainly that the Phase 2 parity check cannot run.
 
 Two phases: **Ingest** (front of the pipeline, produces the Design Flow Map) and **Parity** (after the build, verifies the app matches).
 
