@@ -29,7 +29,16 @@ This command supersedes `/autofeature:api-standards`, which is now a thin alias 
 
 ## $AUTOFEATURE_HOME + the standard
 
-Resolve `$AUTOFEATURE_HOME` as in `autofeature.md` (plugin root / `$CLAUDE_PLUGIN_ROOT` / `$HOME/dev/autofeature`). Read, in this order:
+The methodology files ship with the plugin, so resolve the root from it:
+
+```bash
+# Files ship with the plugin — prefer its root; fall back to an explicit home or dev clone.
+for _d in "$AUTOFEATURE_HOME" "${CLAUDE_PLUGIN_ROOT}" "$HOME/dev/autofeature"; do
+  [ -n "$_d" ] && [ -d "$_d/adapted" ] && { AUTOFEATURE_HOME="$_d"; break; }
+done
+```
+
+Then read, in this order:
 
 1. **`$AUTOFEATURE_HOME/backend/api-standard.md`** — the layering law, the layer contracts, the violation catalogue (V1–V14), the verify gates. Authoritative.
 2. **`$AUTOFEATURE_HOME/backend/stack-profiles.md`** — detection, layer mapping per stack, command discovery.
@@ -70,7 +79,33 @@ Run `typecheck` and `test`. Record the result. **A red baseline is the finding t
 
 ## Step 3: Scan
 
-Delegate the scan to an `Explore` agent (model per `orchestrator/model-tiers.md`) to keep the orchestrator's context clean; keep only the report. Feed it the detected profile and the violation catalogue, and have it check every domain against V1–V14 using the **stack-appropriate tells** from `stack-profiles.md` — `.find(`/`.aggregate(` for Mongoose, `prisma.` for Prisma, `getRepository(` for TypeORM, raw SQL for query builders.
+Delegate the scan so the orchestrator's context stays clean; keep only the report.
+
+```
+Agent({
+  description: "Backend API standard scan",
+  subagent_type: "Explore",
+  model: "sonnet",   // layering judgment, not enumeration — orchestrator/model-tiers.md
+  prompt: "Read $AUTOFEATURE_HOME/backend/api-standard.md (the layer contracts and the V1-V14
+  violation catalogue) and $AUTOFEATURE_HOME/backend/stack-profiles.md (the per-stack tells).
+  Repo: [target]. Detected profile: [profile line from Step 0].
+
+  Audit every domain against V1-V14, using the tells appropriate to THIS stack — `.find(`
+  `.aggregate(` `.create(` for Mongoose, `prisma.` for Prisma, `getRepository(`/`.manager.` for
+  TypeORM, raw SQL for query builders. Do not report a tell from a stack this repo does not use.
+
+  Per domain return: violations found, each with file:line evidence and its catalogue ID; the
+  service surface that SHOULD exist; which existing services it should reuse instead of
+  re-implementing; which helpers should be hoisted to shared modules; and whether it has service
+  unit tests or only route tests.
+
+  Then repo-level: helpers duplicated across domains (V5), anything re-deriving permissions
+  outside the access resolver (V11), and the balance between the two test tiers.
+
+  Evidence, not impressions — every finding carries a file:line. If a domain is compliant, say so
+  in one line rather than manufacturing a finding."
+})
+```
 
 Produce a ranked report. Per domain:
 
@@ -104,7 +139,28 @@ Grep the existing service layer for logic the new domain needs — access resolu
 
 ## Step 6: Generate
 
-Spawn the stack's architect specialist — `express-mongo-architect` for Node (read `$AUTOFEATURE_HOME/agents/express-mongo-architect.md`, inline it, `subagent_type: general-purpose`, `model:` per `orchestrator/model-tiers.md`). Pass it: the detected profile, the relevant blueprint from `scaffold.md`, the reuse-pass findings, the repo's `patterns.md` if present, and the gate commands.
+Spawn the stack's architect specialist — `express-mongo-architect` for Node. Read `$AUTOFEATURE_HOME/agents/express-mongo-architect.md` and inline it into the prompt.
+
+```
+Agent({
+  description: "Backend create — [domain]",
+  subagent_type: "general-purpose",
+  model: "sonnet",   // implementation — orchestrator/model-tiers.md
+  prompt: "[inlined $AUTOFEATURE_HOME/agents/express-mongo-architect.md]
+
+  Mode: implement. Repo: [target]. Detected profile: [profile line].
+  Standard: [inlined $AUTOFEATURE_HOME/backend/api-standard.md]
+  Blueprint: [Blueprint A or B from $AUTOFEATURE_HOME/backend/scaffold.md]
+  Patterns file: [repo .autofeature/patterns.md, if present — its Canonical entries OVERRIDE
+    anything you would infer from sampling existing files]
+  Reuse pass found: [what already exists that this domain must import, not re-implement]
+  Gate commands: typecheck=[…] test=[…] build=[…]
+
+  Generate in dependency order: model → service → controller → route → mount → service unit tests
+  → route tests. The service imports nothing HTTP-shaped. The controller holds no query and no
+  business rule. Run the gates and report their real output."
+})
+```
 
 Generate in dependency order — model → service → controller → route → mount → service tests → route tests. Independent domains may run in parallel (send the spawns in one message); a shared helper two domains both need is extracted **first**, in its own step, because that pass edits multiple files coherently.
 
@@ -135,7 +191,25 @@ If the audit found helpers used by 2+ domains (V5), extract them before any per-
 
 ## Step 9: Per-domain refactor
 
-For each in-scope domain, spawn the stack's architect with a **REFACTOR** job. The job spec, verbatim intent:
+For each in-scope domain, spawn the stack's architect with a **REFACTOR** job.
+
+```
+Agent({
+  description: "Backend refactor — [domain]",
+  subagent_type: "general-purpose",
+  model: "sonnet",   // behaviour-preserving refactor — orchestrator/model-tiers.md
+  prompt: "[inlined $AUTOFEATURE_HOME/agents/express-mongo-architect.md]
+
+  Mode: REFACTOR — behaviour-preserving. Repo: [target]. Profile: [profile line].
+  Standard: [inlined $AUTOFEATURE_HOME/backend/api-standard.md]
+  Audit findings for this domain: [the V-IDs and file:line evidence from Step 3]
+  Baseline: [pre-existing test count, green]
+
+  [the job spec below]"
+})
+```
+
+The job spec, verbatim intent:
 
 > Refactor `<domain>` to route → controller → service → model, **without changing any endpoint's behaviour**. Move ALL business logic and data-layer queries from the controller into the domain's service module (HTTP-agnostic function module, matching this repo's existing service style). Leave the controller as: parse → resolve access → call the service → shape the SAME response → `try/catch → next`. Reuse existing services — do not re-implement. Do NOT touch the route file, the model, or any response shape. Add service unit tests. The existing route tests must pass UNCHANGED — **if you need to edit one, you changed behaviour; stop and flag it.**
 
