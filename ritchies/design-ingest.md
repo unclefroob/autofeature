@@ -6,9 +6,11 @@ status: CUSTOM
 
 # Ritchies Design Ingestion
 
-Ritchies features arrive as **Claude-design HTML exports**, and the real spec — the screens, the per-role/per-level variants, the states, the flow between them — is only legible when the HTML is **rendered**, not when the markup is read as text. These exports are large (often >1 MB), JS-driven, and use non-semantic markup, so grepping the DOM misses most of the flow. **Render when you can.**
+Ritchies features arrive as **Claude-design HTML exports**, and the real spec — the screens, the per-role/per-level variants, the states, the flow between them — is only legible when the HTML is **rendered**, not when the markup is read as text. These exports are large (often >1 MB), JS-driven, and use non-semantic markup, so grepping the DOM misses most of the flow. **Always render.**
 
-**When you cannot render.** Chrome DevTools MCP frequently fails to launch a browser on this machine. Say so rather than quietly skipping the design, then fall back to reading the `.dc.html` as text: it is a single-file app whose content lives in named arrays and boolean section flags, usually in the last third of the file — a row list like `adminRows`, a section flag like `sc.showAdmin`, per-panel flags like `admIsAudit` / `admIsCompliance` / `admIsExport`. Grep for the row or section names the user mentioned, then read the surrounding block. That is enough to diff **copy, row order, and which panels exist** — the whole L7 system-admin gap list was produced this way. It is **not** enough to judge layout, spacing, or which states are actually reachable, so mark the Flow Map's per-screen states **unverified**, and say plainly that the Phase 2 parity check cannot run.
+**Chrome DevTools MCP works on this machine — verified 2026-08-24** end to end against `Chat - Working.dc.html`: `file://` load, `take_snapshot`, `click` into the hidden L7 System-admin panel, `take_screenshot`. If a run claims it "can't launch a browser", that is a bug to diagnose, not a reason to skip Phase 1. **Read the two viewport gotchas in step 2 first — a silent no-op there is the usual cause of a rendering attempt that looks broken.**
+
+**Text-read fallback (only when the browser genuinely will not start).** The `.dc.html` is a single-file app whose content sits in named arrays and boolean section flags, usually in the last third of the file — a row list like `adminRows`, a section flag like `sc.showAdmin`, per-panel flags like `admIsAudit` / `admIsCompliance` / `admIsExport`. Grep for the row or section names the user mentioned, then read the surrounding block. That is enough to diff **copy, row order, and which panels exist**. It is **not** enough to judge layout, spacing, or which states are reachable, so mark the Flow Map's per-screen states **unverified** and say plainly that the Phase 2 parity check cannot run.
 
 Two phases: **Ingest** (front of the pipeline, produces the Design Flow Map) and **Parity** (after the build, verifies the app matches).
 
@@ -27,7 +29,8 @@ Prompt: **"Path to the design export for this feature? (a file or the folder of 
 ### 2. Render every screen (Chrome DevTools MCP)
 For each selected file, using the `mcp__chrome-devtools__*` tools:
 - `new_page` / `navigate_page` to the local `file://<absolute-path>` URL. (If a `file://` load is blocked or renders blank, serve the folder — `python3 -m http.server` in the export dir — and open `http://localhost:<port>/<file>`.)
-- `resize_page` to a phone viewport (e.g. 390×844) since these are phone frames.
+- **Set the viewport with `emulate`, not `resize_page`.** On this machine the browser window is Wayland-managed and `resize_page` **silently no-ops** — it returns a success-looking page list while `window.innerWidth` stays at the desktop width, so every screenshot comes back as a wide desktop board and the run looks broken. Use `emulate` with `viewport: "390x844x3,mobile,touch"`, which overrides device metrics at the CDP level and does work. Confirm with `evaluate_script(() => window.innerWidth)` before screenshotting.
+- **A `.dc.html` is a canvas, not a screen.** It holds many phone frames laid out side by side (all seven access levels on one board), so a full-page screenshot of it is a contact sheet, not a screen. Screenshot individual frames by `uid` from the snapshot, or prefer the `- Standalone.html` sibling, which is a single phone.
 - `take_screenshot` (full page) → save to `.autofeature/designs/design-shots/<feature>/<screen-name>.png`.
 - `take_snapshot` (accessibility tree) to capture the structure/labels/text for the Flow Map — this is your reliable read of the content, not a grep of the HTML.
 
