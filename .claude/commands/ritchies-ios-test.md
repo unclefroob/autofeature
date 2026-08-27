@@ -5,6 +5,8 @@ description: |
   This box has no Xcode. The only route to a compiler is a Claude session on the Mac, so this skill is
   mostly about driving that hand-off well: what to send, what to demand back first, and how to tell a
   session that is working from one that never got your message.
+  Drives the simulator through simctl + XCUITest, never by controlling the screen — pixel-clicking fails
+  silently and reads as a pass.
   Ends with an honest verdict — "built and simulator-verified", "compiled only", or "never compiled" —
   and never inflates one into another.
   Invoke as: /autofeature:ritchies-ios-test [<what changed / Trello #>]
@@ -84,6 +86,10 @@ Send ONE message containing:
 - **Any runtime dependency.** New endpoints that are on `main` but NOT DEPLOYED will 404 against the
   dev backend. Say so, and say the app can be pointed elsewhere via the `api_base_url` UserDefaults
   key without a rebuild.
+- **How the simulator is to be driven**, stated in the brief rather than assumed: `xcrun simctl` for
+  the device and XCUITest for the UI, and **no screen control** — no computer-use, no pointer, no
+  clicking coordinates, no screenshot-then-click. See Step 4 for why, and say it plainly; a session
+  told only "test it on the simulator" will often reach for the screen.
 - **An explicit invitation to report blockage**: "a `blocked because X` reply is far more useful to
   me than silence."
 
@@ -102,8 +108,35 @@ That one result unblocks everything else.
 
 ## Step 4: The simulator pass
 
-Use `xcrun simctl`, not screen capture — the `all-ios-skills:ios-simulator` skill covers lifecycle,
-install, launch, permissions and log streaming. Screenshots are for evidence, never for driving.
+**Drive the simulator through its own tooling. Never by controlling the screen.**
+
+State this in the brief, in as many words, because it is the single instruction most likely to be
+quietly ignored — screen control feels like testing and produces confident-sounding reports that
+mean nothing.
+
+**Not allowed:** computer-use, moving a pointer, clicking pixel coordinates, or any
+screenshot-look-then-click loop. Coordinates move with device size, dynamic type, locale and every
+layout change; a click that lands on the wrong element fails **silently** and reads as a pass; and a
+model interpreting pixels will cheerfully report a screen it has misread. None of it is repeatable
+and none of it can ever run unattended.
+
+**Two tools, two jobs:**
+
+| Tool | Drives | Use it for |
+|---|---|---|
+| `xcrun simctl` | the **device** | boot/`bootstatus`, install, launch (`--console` for stdout), `openurl` for deep links, `privacy` grants, `push`, `status_bar` overrides, `io screenshot`, `log stream --predicate`, `get_app_container` for inspecting sandboxed files |
+| **XCUITest** | the **app's UI** | the actual taps, typing and assertions — elements addressed by accessibility identifier, never by position |
+
+The `all-ios-skills:ios-simulator` skill covers the `simctl` half in detail; hand it to the Mac
+session rather than re-deriving the commands.
+
+**Screenshots and `log stream` are EVIDENCE, captured to show what happened. They are never the
+control mechanism.**
+
+**If an element cannot be addressed, that is a finding, not a reason to fall back to coordinates.**
+Add an `accessibilityIdentifier` (or a label) in the app and treat it as part of the change —
+untestable UI is a defect worth fixing while you are in there, and every control this pipeline adds
+should be reachable by name from the day it ships.
 
 Ask for the checks that would actually catch a regression, phrased as observable outcomes rather
 than as "check X works":
@@ -155,6 +188,10 @@ Report which SHA the verdict applies to. A verdict silently inherited by later c
   and often differ from it. Zero tests run reads exactly like zero failures.
 - **UIKit is a real import.** A file building `UIScrollView`/`UIImageView` that compiles only because
   PDFKit dragged UIKit in is one refactor away from breaking. Import it explicitly.
+- **Screen control is not testing.** Clicking coordinates fails silently when it lands on the wrong
+  element, so a mis-driven pass and a real pass are indistinguishable in the report. `simctl` for the
+  device, XCUITest for the UI, screenshots for evidence only — and if an element cannot be addressed
+  by name, add an accessibility identifier rather than reaching for the pointer.
 - **Deployment is not a merge.** A client feature calling a new endpoint is untestable until the API
   is actually deployed. Probe it: an existing route unauthenticated returns **401**, a route that
   isn't there returns **404**. That is the cheapest deploy check there is.
