@@ -127,7 +127,9 @@ Create the feature branch in the API repo and in each **chosen** client repo (sa
 
 Ask the user explicitly when a release is intended, and merge iOS only on a clear yes. An unwanted build is not catastrophic, but it burns pipeline time, produces a build number nobody asked for, and quietly turns "we finished a ticket" into "we cut a release" — a claim the rest of the team will act on.
 
-The iOS pipeline is configured in **App Store Connect (Xcode Cloud)**, not in the repo, so `.github/workflows` being empty is NOT evidence that nothing will happen. It also does not currently report status back to GitHub — commits carry zero check-runs — so the build result is only visible in App Store Connect or Xcode's Cloud tab, never from `gh`.
+The iOS pipeline is **`.github/workflows/ios-release.yml` in `ritchies-mobile`**: on every push to `main` a GitHub macOS runner regenerates the project with xcodegen, archives and signs an `.ipa`, and uploads it to **TestFlight** via App Store Connect. No Xcode Cloud, no fastlane. It deliberately does NOT run the unit tests — macOS runner minutes bill at ten times the Linux rate — so a merge ships whatever is on main without a test gate. Run `RitchiesTests` before merging, never after.
+
+**Verify this by reading the repo, not by listing a directory from memory.** `ls .github/workflows` in the wrong working directory returns "No such file", which looks exactly like "there is no pipeline" and is how this was previously recorded backwards. Use `git ls-tree -r origin/main --name-only | grep github` after a `git fetch`, or `gh workflow list`; a stale `origin/main` ref will also lie to you.
 
 **Before reusing a branch name, check it isn't a stale leftover.** The client repos often already have `feature/<slug>` pointing at a commit *older* than `main`. In each repo run `git rev-list --count main..<branch>`; `0` means it carries nothing, so `git branch -f <branch> main`. Do not `git checkout` onto it with a dirty tree — that produces a merge conflict in files the feature never touched.
 
