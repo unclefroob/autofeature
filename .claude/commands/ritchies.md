@@ -6,6 +6,7 @@ description: |
   Enforces the repos' deliberate conventions (no Retrofit/Koin on Android, no react-query on web, iOS-parity mobile, four-pillar RBAC, employee-number auth).
   Ingests Claude-design HTML exports by RENDERING them (Chrome MCP) into a Design Flow Map + screenshots, and verifies the built app against them.
   Pipeline: design-ingest → interrogate → scope-gate → plan → branch → API (contract) → pick clients → implement (parallel architects) → test → review → ship → design-parity.
+  iOS verification hands off to a Mac session via /autofeature:ritchies-ios-test, and iOS is deliberately NOT merged to main on ship — that merge starts an App Store Connect build, so it is a release decision.
   Invoke as: /autofeature:ritchies [mode:] <feature description>
 allowed-tools:
   - Bash
@@ -113,6 +114,21 @@ If any is missing, tell the user which and ask whether to proceed with the ones 
 
 Create the feature branch in the API repo and in each **chosen** client repo (same branch name), off each repo's `main`. Coordinate the ship (base Step 10b) across exactly those repos.
 
+**`main` is not a resting place in this platform — it is a deploy trigger, and what it triggers differs per repo.** Know which one you are about to pull before you merge anything:
+
+| Repo | Merging to `main` does | So merge when |
+|---|---|---|
+| `ritchies-platform-api` | **Auto-deploys to the dev App Service.** | The API is ready to be live on dev. This is usually what you want — clients cannot be tested against endpoints that are not deployed. |
+| `ritchies-platform-web` | **Auto-deploys the Static Web App.** | Same. |
+| `ritchies-mobile` (iOS) | **Kicks off an App Store Connect build.** | ⚠️ **ONLY when you actually intend to cut a build for App Store Connect.** Never as routine tidying-up at the end of a feature. |
+| `ritchies-android` | Nothing automatic today. | Anytime. |
+
+**iOS therefore does NOT follow the other repos' ship step.** Land the work on the feature branch, open the PR, and **leave it open**. Say so in the PR body and in the report: *"iOS is on `feature/<slug>` and deliberately not merged — merging `main` starts an App Store Connect build, so that merge is a release decision, not a ship step."*
+
+Ask the user explicitly when a release is intended, and merge iOS only on a clear yes. An unwanted build is not catastrophic, but it burns pipeline time, produces a build number nobody asked for, and quietly turns "we finished a ticket" into "we cut a release" — a claim the rest of the team will act on.
+
+The iOS pipeline is configured in **App Store Connect (Xcode Cloud)**, not in the repo, so `.github/workflows` being empty is NOT evidence that nothing will happen. It also does not currently report status back to GitHub — commits carry zero check-runs — so the build result is only visible in App Store Connect or Xcode's Cloud tab, never from `gh`.
+
 **Before reusing a branch name, check it isn't a stale leftover.** The client repos often already have `feature/<slug>` pointing at a commit *older* than `main`. In each repo run `git rev-list --count main..<branch>`; `0` means it carries nothing, so `git branch -f <branch> main`. Do not `git checkout` onto it with a dirty tree — that produces a merge conflict in files the feature never touched.
 
 ## Override — Step 7b: implementation (per architect, parallel)
@@ -127,7 +143,9 @@ For the API and each chosen client, spawn the same architect in `implement` mode
 
 - **API:** run the jest suite (base test-runner) — it must be green; typecheck + build too (that's the CI gate).
 - **Web:** `npm run typecheck` + `npm run lint` (0 errors) + `npm test` (vitest) + `vite build` — all four, locally; SWA CI only builds.
-- **iOS:** prefer `xcodebuild`; if unavailable, `swiftc -typecheck` and report "compile-checked only." Never claim "tested on simulator" for a type-check. Note that adding/moving files needs a real Xcode build (`swiftc` is blind to the project file). **`ritchies-mobile` has never been compiled on this machine in its history** — the PR body must say "compile-checked only, never built" rather than anything that implies otherwise.
+- **iOS: run `/autofeature:ritchies-ios-test`.** This machine has no Xcode and never will, so iOS verification is a hand-off to a Claude session on the Mac; that skill covers picking the right session (**by machine name, never by project name**), what to send, demanding the compile result before anything else, and the simulator pass. It ends in one of four verdicts and forbids warming one into another.
+
+  If no Mac is reachable, fall back to `swiftc -typecheck` and report **"compile-checked only"** — never "tested on simulator". Be aware `swiftc` is blind to the project file, so a newly added file that never made it into the target still passes. Default to **"never compiled"** when no compiler ran at all; that is an accurate gap, and it is worth more than a confident guess.
 - **Android:** this environment **can** build — try `:app:assembleDebug` with SDK + JDK17 + gradle-8.9 (see the architect's Verification section). If the toolchain isn't present, say "compile-checked only / NOT built." Never inflate.
 
 ## New Step 10.6: Design Parity (after ship, only if a design was ingested)
