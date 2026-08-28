@@ -205,6 +205,30 @@ The habit does not transfer by having it once. As the session that found all
 three put it: it is not a property you have, it is something each assertion
 either got or did not.
 
+### "Not hittable" is at least THREE conditions, not one
+
+The single most expensive assumption in this suite. An element that exists but is
+not hittable is:
+
+| Cause | Fix | Tell-tale |
+|---|---|---|
+| covered by a system window | dismiss from inside the wait (below) | `windows: 2`, a sheet or dialog is named |
+| **below the fold** | scroll it into view before tapping | `sheets: none`, and the frame is off-screen |
+| genuinely disabled | a real finding — do not work around it | element reports `isEnabled: false` |
+
+All three produce the SAME assertion failure, and a helper that handles only the
+first will fail the other two while confidently reporting an obstruction that is
+not there. That happened twice in one evening in the same helper: once as a
+system dialog, once as row 11 of 30 sitting below the fold in a list the test
+never scrolled — the horizontal tab strip had scroll handling, the vertical list
+did not, written by the same person an hour apart.
+
+So `tapElement` must, in order: scroll into view, then clear any system window,
+then wait for hittable. And the diagnostic must SAY WHICH — print the element's
+frame, the scroll-view count, and the named sheets, with a line in words for the
+below-the-fold case. Otherwise "covered" and "off screen" are indistinguishable
+from the message, which is exactly what cost the extra run.
+
 ### The iOS "Save Password?" dialog — dismiss it from the WAIT, not after sign-in
 
 After a successful sign-in, iOS may offer to save the password. It arrives in its
