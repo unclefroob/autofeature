@@ -169,6 +169,90 @@ Report which SHA the verdict applies to. A verdict silently inherited by later c
 
 ---
 
+## Traps that have actually cost hours
+
+Each of these was paid for once. None is guessable from the failure message.
+
+### The iOS "Save Password?" dialog
+
+After a successful sign-in, iOS may offer to save the password. It arrives in its
+own window and covers the app, so **every element behind it reports as
+non-hittable**. Dismiss it at the END of the sign-in helper, before anything else
+touches the UI:
+
+```swift
+app.buttons["Sign in"].tap()
+
+// iOS offers to save the password after a successful sign-in. It arrives in its
+// own window and covers the app, which makes every element behind it report as
+// non-hittable. Dismiss it before touching anything else.
+let notNow = app.buttons["Not Now"]
+if notNow.waitForExistence(timeout: 10) {
+    notNow.tap()
+}
+```
+
+**The `if` is required.** The dialog does not always appear — it depends on prior
+simulator state — so an unconditional tap fails on the run where iOS decides not
+to ask.
+
+**The failure signature is the real trap, not the dialog.** You see
+`Failed to not hittable: Button ... label: 'Operations'` on an element plainly on
+screen, which reads as a z-order or scrim bug in your own views. One run was
+spent patching `allowsHitTesting(false)` onto a drawer scrim chasing exactly
+that, and it was the wrong fix. **If several unrelated elements all report
+non-hittable at once, suspect a system window before you suspect your layout.**
+`print(app.debugDescription)` shows the dialog; a query for one element does not.
+
+### Do not poll `waitForExistence` in a hittability loop
+
+`waitForExistence(timeout: 0.25)` returns INSTANTLY once the element exists, so a
+loop around it busy-spins and starves the accessibility server — slowing the very
+thing it is waiting for. Use a real sleep:
+
+```swift
+while Date() < deadline {
+    if element.exists && element.isHittable { return true }
+    Thread.sleep(forTimeInterval: 0.5)
+}
+```
+
+### Invoke tests individually
+
+Batching several `-only-testing:` flags into one `xcodebuild` makes them all fail
+fast at the first navigation step, even on an idle machine. Cause unknown, not
+guessed at. Individually each takes 22-28s and passes.
+
+### A test filter matching the FILE name can match zero tests
+
+The suite names inside a file often differ from the filename. Zero tests run
+reads exactly like zero failures. Always report the actual count.
+
+### Make failures say what IS on screen
+
+A timeout on the way in and a genuinely wrong value fail the same assertion and
+need opposite follow-up. Print the actual header, which states are visible, and
+whether a spinner is up — not only that the expected string was absent.
+
+Two corollaries worth copying:
+
+- **Assert the control was live BEFORE the state you are testing.** In a
+  stale-queue test, assert Approve IS offered before the row goes stale.
+  Otherwise "no Approve button" reads identically whether the button was never
+  enabled or was correctly withdrawn.
+- **Guard destructive tests on their preconditions BEFORE the first write.** A
+  test that proposes, writes, and only then fails to authenticate its second
+  actor leaves real state behind and reports a UI fault. Check the precondition
+  and skip, naming the missing config in the skip message.
+
+### Loose on wording, strict on provenance
+
+Pin the SHAPE of a message, not its exact text — a copy edit should not read as a
+regression. But do assert it came from the server rather than from a generic
+client string, because that is the property you actually care about.
+
+---
+
 ## Learnings this skill exists to encode
 
 - **A project-named session is not a machine.** Match on hardware in the name, or ask.
@@ -192,6 +276,12 @@ Report which SHA the verdict applies to. A verdict silently inherited by later c
   element, so a mis-driven pass and a real pass are indistinguishable in the report. `simctl` for the
   device, XCUITest for the UI, screenshots for evidence only — and if an element cannot be addressed
   by name, add an accessibility identifier rather than reaching for the pointer.
+- **When waiting on a deploy, check something that should ALREADY work.** A watch
+  that only polls the endpoint it wants cannot tell "not deployed yet" from
+  "service is down" — both are non-200, and it will sit there reporting progress
+  about a dead service. Poll login (or any known-good route) alongside the thing
+  you are waiting for. This was found the hard way: a green deploy, a watch
+  patiently waiting, and the whole API 503 for several minutes.
 - **Deployment is not a merge.** A client feature calling a new endpoint is untestable until the API
   is actually deployed. Probe it: an existing route unauthenticated returns **401**, a route that
   isn't there returns **404**. That is the cheapest deploy check there is.

@@ -54,6 +54,25 @@ Sibling paths live under the same parent dir as the repo you're invoked in (both
 
 - **Grandfathered domains:** `src/auth/` and `src/chat/` are pre-existing domain-module services — keep importing from them (do not relocate them). New per-domain services follow `src/services/<domain>Service.ts`.
 - **Auth/capability guards — two middlewares, different jobs.** `requireCapabilityHeld(key)` / `requireAnyCapabilityHeld(...keys)` gate a route on the caller merely HOLDING a capability (what tasks and calendar routes use); `requireCapability(key)` is for global caps with the same held semantics but an older shape. **Scoped** caps are checked in the service/handler via `resolveAccess`/`can` once the resource is loaded — a route-level guard cannot know the resource.
+- **Boot-time OPTIONAL work must never be able to stop the server starting.** The
+  API's entrypoint runs env-gated conveniences (`CATALOG_SYNC_ON_BOOT`,
+  `COMPANY_LINKS_SEED_ON_BOOT`, `LEVEL_USERS_SEED_ON_BOOT`) before
+  `server.listen()`, inside a `try` whose `catch` calls `process.exit(1)`. Run one
+  of those bare and a throw from optional work kills required work — the whole
+  API 503s, every route, not just the feature being seeded.
+
+  This is not hypothetical: `LEVEL_USERS_SEED_ON_BOOT` on an environment with
+  `NODE_ENV=production` hit the seeder's own refusal to use a default password
+  there — a CORRECT guard — and took dev down. Wrap every such flag so the
+  failure is loud in the log and the server still listens (`bootSeed` in
+  `src/index.ts`). Note the company-links flag carried the identical fault for
+  days and had simply never thrown; that is the version nobody finds by reading
+  an incident report.
+
+  Corollary for the flags themselves: **dev runs `NODE_ENV=production`.** A guard
+  keyed on that fires there. Go THROUGH it (set `SEED_LEVEL_PASSWORD`) rather
+  than around it.
+
 - **A new capability key is a deploy step, not just code.** Adding one to the catalog means `npm run catalog:sync` must run against every environment before any preset holds it — a feature that "doesn't work for level 1" after deploy is usually this.
 - **The server authors the verdict, clients render it.** Access ladders (chat create tiers), admin-role provenance (`adminSource`), and "can this selection be created" answers are computed server-side and shipped in envelopes (`can`, `create`, `admin`, preview verdicts with server-authored reason strings). Clients never decode an access level or re-implement a ladder — the chat create ladder is deliberately non-monotonic and three clients must say the same thing.
 - **Auth flows are enumeration-safe.** `forgot-password` answers 200 with the same copy whether or not the account exists; keep that property in any new auth-adjacent surface and mirror the server's copy in clients.
