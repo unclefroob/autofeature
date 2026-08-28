@@ -286,6 +286,33 @@ Two corollaries worth copying:
   actor leaves real state behind and reports a UI fault. Check the precondition
   and skip, naming the missing config in the skip message.
 
+### A permissive assertion can absorb a real defect
+
+`identifier OR fallback` is tempting when you want a test to survive across
+commits. It also means the test passes when the identifier is MISSING, which is
+the exact thing you added the identifier to guarantee.
+
+This happened: a register test written as "match the identifier, or fall back to
+BEGINSWITH on the label" passed green while the identifier branch was false the
+whole time. The fallback absorbed a genuine bug — a container identifier that had
+overwritten every button's — and it stayed hidden for an hour until a later test
+needed one of those buttons. Asserting the identifier ALONE would have surfaced
+it immediately.
+
+If you need commit-portability, assert both explicitly and say which matched, or
+gate the fallback on a known-old SHA. Do not let `||` hide which half is true.
+
+### An identifier on a container can REPLACE its child's
+
+SwiftUI collapses a container whose only accessible descendant is one element,
+and the container's `accessibilityIdentifier` then overwrites the child's rather
+than nesting above it. A row VStack containing a single Button will hand its
+identifier to that button and silently erase the button's own.
+
+Put identifiers on LEAVES — a `Text`, the `Button` itself. A leaf cannot swallow
+a sibling's. `.accessibilityElement(children: .contain)` also fixes it, but only
+helps someone who already knows the collapse exists.
+
 ### Loose on wording, strict on provenance
 
 Pin the SHAPE of a message, not its exact text — a copy edit should not read as a
