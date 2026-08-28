@@ -135,6 +135,16 @@ The historic web/mobile blue split is RESOLVED: every client uses **`#0039A6`** 
 
 Every data-driven screen distinguishes **loading, failed, and genuinely empty** — three states that must never share one blank pane — and a failure offers a visible **Try again** control (pull-to-refresh alone is not a discoverable retry). **A failure must never masquerade as an empty result** (web encodes this as `data: null` = failed vs `[]` = empty). List screens refresh: `.refreshable` on iOS, `RefreshableContent` on Android. Transient errors on Android go to `LocalAppSnackbar`; web uses sonner. All three clients already mount a passive offline banner at root (web `OfflineBanner`, iOS `ConnectivityMonitor`, Android `AppChrome`) — do not add per-screen connectivity handling.
 
+- **Pin the strings that answer a question.** An empty state, a disabled-control
+  explanation, a "someone else does this" note — copy that does real work looks
+  like filler to anyone who did not have the question it answers, so it is the
+  copy most likely to be deleted as noise by a later tidy-up. Assert it in a
+  test. The Company Links empty queue is the worked example: "Nothing awaiting
+  approval" plus "Proposed changes appear here for a second administrator" is
+  what stops a phone that cannot author from reading as a dead end, and it was
+  confirmed to land by someone opening that screen cold. One sentence carrying
+  the whole maker-checker split is exactly the sentence that looks removable.
+
 ## Test conventions (all four repos have tests — keep each green)
 
 | Repo | Framework | Run | CI-gated |
