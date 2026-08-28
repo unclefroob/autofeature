@@ -205,36 +205,45 @@ The habit does not transfer by having it once. As the session that found all
 three put it: it is not a property you have, it is something each assertion
 either got or did not.
 
-### The iOS "Save Password?" dialog
+### The iOS "Save Password?" dialog — dismiss it from the WAIT, not after sign-in
 
 After a successful sign-in, iOS may offer to save the password. It arrives in its
 own window and covers the app, so **every element behind it reports as
-non-hittable**. Dismiss it at the END of the sign-in helper, before anything else
-touches the UI:
+non-hittable**.
+
+**A one-shot dismissal after `Sign in` is NOT enough, and was the first version
+of this advice.** The sheet does not reliably arrive inside any fixed window —
+one observed instance landed more than ten seconds after sign-in, mid-navigation,
+long after a 10s dismissal had given up. A one-shot dismissal with any timeout is
+a race, and it lost three times in one evening.
+
+Dismiss it from inside the hittability loop instead, so anything waiting to
+become tappable also clears the dialog if it appears. Handled whenever it shows
+up, rather than only when it is punctual:
 
 ```swift
-app.buttons["Sign in"].tap()
-
-// iOS offers to save the password after a successful sign-in. It arrives in its
-// own window and covers the app, which makes every element behind it report as
-// non-hittable. Dismiss it before touching anything else.
-let notNow = app.buttons["Not Now"]
-if notNow.waitForExistence(timeout: 10) {
+private func dismissSavePasswordIfPresent(_ app: XCUIApplication) -> Bool {
+    let notNow = app.buttons["Not Now"]
+    guard notNow.exists && notNow.isHittable else { return false }
     notNow.tap()
+    return true
 }
 ```
 
-**The `if` is required.** The dialog does not always appear — it depends on prior
-simulator state — so an unconditional tap fails on the run where iOS decides not
-to ask.
+Call it from `waitHittable`'s loop, beside the sleep.
 
-**The failure signature is the real trap, not the dialog.** You see
+**The failure signature is the real trap.** You see
 `Failed to not hittable: Button ... label: 'Operations'` on an element plainly on
 screen, which reads as a z-order or scrim bug in your own views. One run was
 spent patching `allowsHitTesting(false)` onto a drawer scrim chasing exactly
-that, and it was the wrong fix. **If several unrelated elements all report
-non-hittable at once, suspect a system window before you suspect your layout.**
-`print(app.debugDescription)` shows the dialog; a query for one element does not.
+that. **If several unrelated elements all report non-hittable at once, suspect a
+system window before you suspect your layout** — the dialog never reports at the
+dialog, it reports as whatever it happens to be covering.
+
+Make the hittability failure NAME the obstruction: window count, system dialog
+buttons, alerts, sheets. That diagnostic is what turned a guess ("probably the
+Save Password sheet") into evidence (`sheets: Save Password?`, `windows: 2`) on
+the very next occurrence.
 
 ### Do not poll `waitForExistence` in a hittability loop
 
