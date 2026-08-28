@@ -173,6 +173,38 @@ Report which SHA the verdict applies to. A verdict silently inherited by later c
 
 Each of these was paid for once. None is guessable from the failure message.
 
+### In XCUITest, a failure almost never names its cause
+
+This is the meta-trap, and every specific one below is an instance of it. **A
+swallowed tap never reports at the tap — it reports at the next assertion that
+depended on it.** Across one evening, three separate failures each named the
+wrong thing:
+
+| The failure said | The actual cause |
+|---|---|
+| "Operations group header should exist" | the menu tap was swallowed mid-render; the sidebar was fine |
+| "The register should list CL-011" | the register was full; the code lives inside a composite label |
+| "Button 'Operations' not hittable" | a system Save Password window was covering everything |
+
+Read every XCUITest failure as *"something before this did not happen"* before
+reading it as *"the thing named is broken"*. Concretely:
+
+- **Never tap on `waitForExistence` alone.** Existing and being hittable are
+  different states, and a tap delivered during a render or an animation is
+  silently dropped. Route every tap through one helper that waits for hittable,
+  and then actually use that helper everywhere — including in the navigation
+  code you wrote before you had it. A helper you wrote and then bypassed in the
+  one function that needed it most is the commonest version of this.
+- **Never exact-match a label you did not construct.** `staticTexts["CL-011"]`
+  fails identically whether the row is missing, mislabelled, or merely rendered
+  as `"CL-011 · All · low risk"`. Address by identifier, or match on CONTAINS.
+- **Make the assertion print what IS on screen**, not only that the expected
+  thing was absent.
+
+The habit does not transfer by having it once. As the session that found all
+three put it: it is not a property you have, it is something each assertion
+either got or did not.
+
 ### The iOS "Save Password?" dialog
 
 After a successful sign-in, iOS may offer to save the password. It arrives in its
