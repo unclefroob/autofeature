@@ -173,18 +173,25 @@ Report which SHA the verdict applies to. A verdict silently inherited by later c
 
 Each of these was paid for once. None is guessable from the failure message.
 
-### In XCUITest, a failure almost never names its cause
+### A failure almost never names its cause
 
 This is the meta-trap, and every specific one below is an instance of it. **A
 swallowed tap never reports at the tap — it reports at the next assertion that
-depended on it.** Across one evening, three separate failures each named the
-wrong thing:
+depended on it.**
+
+It is NOT an XCUITest property. It is what happens whenever a layer reports what
+it OBSERVED rather than what went wrong, and the observing layer is downstream of
+the fault. The clearest instance below happened in plain `URLSession` code with
+no UI involved at all. Across one evening, seven failures named the wrong thing:
 
 | The failure said | The actual cause |
 |---|---|
 | "Operations group header should exist" | the menu tap was swallowed mid-render; the sidebar was fine |
 | "The register should list CL-011" | the register was full; the code lives inside a composite label |
 | "Button 'Operations' not hittable" | a system Save Password window was covering everything |
+| "Propose deactivation should be tappable, nothing covering it" | row 11 of 30, below the fold, in a list the test never scrolled |
+| "no Propose deactivation for CL-011" | the button was on every row; a container identifier had overwritten its own |
+| `{"error":"Route not found"}` on a working route | the client INFERRED the HTTP verb and sent GET to a POST-only path |
 
 Read every XCUITest failure as *"something before this did not happen"* before
 reading it as *"the thing named is broken"*. Concretely:
@@ -309,6 +316,33 @@ Two corollaries worth copying:
   test that proposes, writes, and only then fails to authenticate its second
   actor leaves real state behind and reports a UI fault. Check the precondition
   and skip, naming the missing config in the skip message.
+
+### Never infer an HTTP verb
+
+A helper that derives the method from the shape of the call —
+
+```swift
+request.httpMethod = body == nil && token != nil ? "GET" : "POST"   // WRONG
+```
+
+— sends `GET` to a POST-only endpoint the moment an action takes a token and no
+payload. The server correctly answers "Route not found", so the error names the
+NOUN when the verb was wrong, and you go looking at routing for a route you have
+already watched work.
+
+Pass the method explicitly at every call site. The inference reads as a sensible
+convenience and produces an error pointing somewhere else entirely.
+
+### A test that must WRITE to build its own precondition needs the path checked first
+
+Most tests can guard on preconditions before the first write. One shape cannot:
+a stale-state test has to CREATE the state it then invalidates, so its setup is
+itself a write.
+
+That test is the one that leaves debris when a later step fails, and it did —
+twice, on the same test, on a shared environment. Structure it to verify the
+whole path is reachable BEFORE writing anything: confirm the approve endpoint
+answers, then propose. Otherwise every downstream bug costs a manual cleanup.
 
 ### A permissive assertion can absorb a real defect
 
