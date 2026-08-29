@@ -68,7 +68,11 @@ Assume zero context.
 
 ---
 
-## Step 3: The brief — demand the compile result on its own
+## Step 3: The brief — demand the TEST build, not the compile
+
+Ask for `xcodebuild test` (or at minimum a build of the test targets), never `xcodebuild build` alone. They are different questions and they give different answers: a `@MainActor` annotation on a type whose pure static the unit tests call synchronously leaves the APP building clean and the test target refusing to compile. A green `xcodebuild build` is not evidence the suite can run, and a branch handed over on one is a branch whose tests nobody can execute.
+
+Ask for the test COUNT with the result. A number that moved tells you a merge brought its own tests, and a number that did not move when it should have is the cheapest signal that something compiled but was skipped.
 
 Send ONE message containing:
 
