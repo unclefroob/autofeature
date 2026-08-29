@@ -377,6 +377,20 @@ Pin the SHAPE of a message, not its exact text — a copy edit should not read a
 regression. But do assert it came from the server rather than from a generic
 client string, because that is the property you actually care about.
 
+### Confirm WHICH screen you photographed, not just that it looks right
+
+A tab can render its PARENT's chrome. Opening Chat's "System admin" segment still
+shows ChatListView's header; `ChatSystemAdminView`'s own scaffold, with its own
+colour pair, is one level further in — reached by opening an admin row. A
+screenshot taken at the tab is seamless, correct, and about a different screen
+than the one under test.
+
+Nothing in such an image announces the mistake. It is not blurry or empty; it is
+a clean picture of the wrong subject, and it confirms whatever you already
+believed. So before a render counts as evidence, name the thing that makes the
+screen identifiable — the title text, the specific colour, an identifier — and
+check the capture actually contains it. "It looked right" is not a location.
+
 ### A zero from an instrument that cannot produce the event is not a finding
 
 XCUITest's synthetic gestures do NOT trigger SwiftUI's `.refreshable` in this
