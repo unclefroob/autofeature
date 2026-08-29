@@ -7,7 +7,7 @@ description: |
   Invoke as:
     /autofeature:award-scenarios <AWARD_CODE>
     /autofeature:award-scenarios <AWARD_CODE> only: sunday-is-public-holiday,weekly-overtime-on-saturday
-argument-hint: <AWARD_CODE> [only: <scenario-id,...>]
+argument-hint: "<AWARD_CODE> [only: <scenario-id,...>]"
 ---
 
 # AutoFeature — Award Behavioural Verification

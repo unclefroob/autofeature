@@ -62,6 +62,11 @@ Read `$AUTOFEATURE_HOME/adapted/feature-test.md` and follow **Step 1**. Parse fr
 **Credential safety is non-negotiable** (per feature-test.md): never echo, log, screenshot, write to
 the report, or commit a credential; redact to `••••` everywhere; refuse a non-gitignored creds file.
 
+**Credentials mint a session; they are never typed.** Chrome refuses password fields, so read
+`$AUTOFEATURE_HOME/adapted/browser-session.md` and check its three preconditions here — non-production
+target, fixture credentials only, no real person's password. A production target or a human's real
+credential means rung 5 (the user authenticates in their own browser), not a blocked run.
+
 Echo what you're about to test so the user can correct course before driving.
 
 ---
@@ -73,7 +78,8 @@ load them via ToolSearch as feature-test.md Step 3 describes):
 
 - **Web** → Claude-in-Chrome MCP: `ToolSearch({ query: "claude-in-chrome", max_results: 30 })`, then
   `list_connected_browsers`. If no browser is connected, ask the user to open Chrome with the Claude
-  extension. (Local build with no server → Claude Preview MCP instead.)
+  extension. (Local build with no server → Claude Preview MCP instead.) Don't degrade to desktop
+  computer-use — it can't reach the page's JS, which is what the session ladder runs on.
 - **iOS** → `xcrun simctl` available (and the `ios-simulator` skill if installed) for lifecycle +
   `ToolSearch({ query: "computer-use", max_results: 30 })` → `request_access` for **Simulator** for input.
 - **Android** → `adb`/`emulator` on PATH + computer-use access for the emulator window.
@@ -91,6 +97,9 @@ Continue following `$AUTOFEATURE_HOME/adapted/feature-test.md`:
   exists (`.autofeature/tests/*.md` — format in `feature-test-manifest.md`), and **always** also map
   the live surface (delegate the read-heavy mapping to an `Explore` subagent; drive from the main
   loop). Synthesize an ordered flow list filtered to the scope; show it, then drive.
+- **Step 2.5 (Session):** for web, establish auth per `adapted/browser-session.md` — highest supported
+  rung, then **both** verification signals before any flow runs. An unconfirmed session is
+  `BLOCKED (session not established at rung N)` with the probe response, never a walked flow.
 - **Step 3 (Drive):** per-platform playbook (Chrome MCP / simulator + computer-use / emulator + adb).
   Capture screenshots + console/network errors with the evidence discipline (save to
   `.autofeature/test-runs/<ts>/`, reference by path, never dump full logs).
@@ -115,6 +124,7 @@ fix: …` runs (passing repro + evidence) and/or Trello cards. This command repo
 |---------|--------------|
 | `/autofeature:test` (this) | **Drives the live app** and reports per-flow PASS/FAIL — derives its own plan |
 | `/autofeature` Step 8 / `agents/test-runner.md` | Runs the **headless** unit/integration/e2e suite |
+| `/autofeature:ui-test` | **Web-only** browser driver for seeded fixtures — same session ladder, no simulators |
 | `/autofeature:product-review` | Finds product gaps **from the code** (no driving) |
 | `/autofeature` | Builds & ships a feature — and emits the Test Manifest this command consumes |
 
@@ -126,4 +136,5 @@ Natural flow: `/autofeature` (build → ships + writes the manifest) → `/autof
 | File | Purpose |
 |------|---------|
 | `adapted/feature-test.md` | The methodology — drivers (web/iOS/Android), plan derivation, credential safety, evidence, report, hand-off |
+| `adapted/browser-session.md` | Authenticating the browser **without typing a password** — preconditions, detection, rungs 0–5, two-signal verification |
 | `adapted/feature-test-manifest.md` | The Test Manifest format — the plan spine when present; on-demand generation |

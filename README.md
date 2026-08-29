@@ -117,6 +117,49 @@ and console/network errors.
 Credentials are never logged, written to the report, or committed. Failures can be handed straight to
 `/autofeature` to fix — this command only reports, it never edits app code.
 
+### Logging in, when the browser won't type a password
+
+Claude in Chrome refuses password fields. That is deliberate and it isn't negotiable, so a test whose
+login step fills `#password` no longer gets past flow one — everything behind it reports BLOCKED.
+
+`adapted/browser-session.md` replaces that step for every browser-driven command. The fix isn't to
+defeat the refusal, it's to stop needing it: a session is a cookie or a token, and typing a password
+is the slowest and most privileged way to get one. So the password never enters the browser's input
+path at all. Where a fixture credential has to be exchanged, it goes over HTTP — from the shell, or a
+same-origin `fetch` the page itself makes, which lands an httpOnly `Set-Cookie` in the real jar.
+
+Six rungs, highest the app supports:
+
+| | Rung | When |
+|---|------|------|
+| **0** | The seeder emits sessions with the fixtures | You seed your own test data — retires the rest |
+| **1** | A dev-only `/__test/login` endpoint, 404-guarded | You control the API. The Playwright answer |
+| **2** | Same-origin `fetch` login from the page | httpOnly cookies JS can't write |
+| **3** | Token injected at the frontend's real storage key | The API returns a token |
+| **4** | Storage-state replay, captured once per role | Auth is expensive or rate-limited |
+| **5** | The human's own session — reuse it, or pause and ask | SSO, MFA, **and any real credential** |
+
+Guarded on both ends. It refuses to run against production, against anything but fixture accounts, or
+against a real person's password — those are rung 5, always. And it verifies twice before driving:
+the API must name the user you intended *and* the DOM must show a marker that can't render
+anonymously. A session that quietly didn't take is the expensive failure — every flow then fails for
+the same wrong reason, which reads exactly like a catastrophically broken product.
+
+## Driving the browser directly — `/autofeature:ui-test`
+
+Web only, seeded-fixture-first. Same session ladder, none of the simulator machinery.
+
+```
+/autofeature:ui-test url: http://localhost:5173                    # detect roles, drive everything
+/autofeature:ui-test url: http://localhost:5173 roles: manager,employee
+/autofeature:ui-test branch                                        # only what changed
+/autofeature:ui-test seed                                          # re-seed fixtures first
+```
+
+It seeds the users, mints a session per role, walks each role's flows as that role, and keeps one
+flow that opens the real login screen and reports it BLOCKED — so "we never test login" can't hide
+inside a green run.
+
 ---
 
 ## Shaping a backend — `/autofeature:backend-api-skills`

@@ -1,6 +1,6 @@
 ---
 status: CUSTOM
-description: Live acceptance-testing methodology for /autofeature:test. Derives its own test plan by reviewing what was built (Test Manifest + code + running surface — a plan is NOT given), then DRIVES the real app like a user — web in a browser (Chrome MCP), or a mobile app in a simulator/emulator (ios-simulator skill / adb + computer-use) — logging in with a URL + credentials, walking each flow, and reporting per-flow PASS/FAIL/BLOCKED with screenshots + console/network errors. Complements agents/test-runner.md (which runs HEADLESS unit/integration/e2e suites); this drives the LIVE app. Advisory — hands failures off to /autofeature, never auto-fixes.
+description: Live acceptance-testing methodology for /autofeature:test. Derives its own test plan by reviewing what was built (Test Manifest + code + running surface — a plan is NOT given), then DRIVES the real app like a user — web in a browser (Chrome MCP), or a mobile app in a simulator/emulator (ios-simulator skill / adb + computer-use) — establishing a session WITHOUT typing a password (browser-session.md's rung ladder), walking each flow, and reporting per-flow PASS/FAIL/BLOCKED with screenshots + console/network errors. Complements agents/test-runner.md (which runs HEADLESS unit/integration/e2e suites); this drives the LIVE app. Advisory — hands failures off to /autofeature, never auto-fixes.
 ---
 
 # Feature Test — Live Acceptance Driver
@@ -65,6 +65,12 @@ Echo what you're about to do so the user can correct course:
   non-ignored creds file — it risks committing secrets.
 - If no credentials are available and a flow needs auth, mark those flows **BLOCKED (no credentials)**
   rather than guessing.
+- **Credentials are for minting a session, never for typing.** `browser-session.md` owns the
+  exchange: a fixture credential goes over HTTP (from the shell, or a same-origin `fetch` the page
+  makes), never through the browser's input path. Fixture accounts on non-production targets only —
+  a real person's password, including the user's own, is rung 5 (they log in themselves) at every
+  tier. Session blobs (`.autofeature/sessions.local.json`, `session-state.local.json`,
+  `session-profile.json`) carry the same gitignore rule as the creds file above.
 
 ---
 
@@ -137,10 +143,17 @@ Load: `ToolSearch({ query: "claude-in-chrome", max_results: 30 })`. Key tools:
 
 1. **Connect:** `list_connected_browsers`. If none, ask the user to open Chrome with the Claude
    extension (do **not** fall back to desktop computer-use for a browser — it's read-only there).
-2. **Login once:** `navigate` to the app/login URL → `find`/`read_page` to locate the username &
-   password fields → `form_input` to fill (redacted) → submit (click the button via `computer` or
-   `form_input` submit). Verify you're authenticated (look for a logged-in marker) before walking
-   flows. If login fails → mark all auth-required flows **BLOCKED (login failed)** and say so.
+2. **Establish a session once — do not type a password.** Chrome refuses password fields, so
+   `form_input` into `#password` no longer completes and a login step built on it blocks every
+   auth-gated flow behind it. Follow **`browser-session.md`** instead: check its preconditions, run
+   its detection, take the highest rung the app supports (seed-and-mint → dev endpoint →
+   same-origin fetch → token injection → storage replay → the human's own session), and clear
+   **both** verification signals — the API names the user you intended, and the DOM shows a marker
+   that cannot render anonymously. Verification failure **stops the run**: report
+   `BLOCKED (session not established at rung N)` with the probe response rather than walking flows
+   against a session you could not confirm. Keep one flow that opens the real login screen with the
+   fixture user and report it `BLOCKED (password field — Chrome guardrail)`, so "login is never
+   tested" cannot hide inside a green run.
 3. **Walk each flow:** perform the steps (`navigate` / `find` + `computer` click / `form_input` /
    `file_upload`), then assert the expected visible state via `read_page` / `get_page_text` / `find`.
 4. **Capture errors continuously:** after each flow, pull `read_console_messages` (JS errors,
@@ -280,6 +293,9 @@ Stop and ask (AskUserQuestion) when:
 - **Evidence or it didn't happen.** A PASS needs an observed expected state; a FAIL needs a screenshot
   or a captured error. No verdicts from assumption.
 - **Secrets stay secret.** Redact credentials everywhere; refuse a non-gitignored creds file.
+- **Sessions are minted, not typed.** No password ever enters the browser's input path — take the
+  highest rung `browser-session.md` supports and verify identity twice before driving. An
+  unconfirmed session is BLOCKED, never a walked flow.
 - **Report, don't fix.** Hand failures to `/autofeature`.
 - **Right tool per surface.** Web → Chrome MCP (or Claude Preview for local builds); native sim/emulator
   → computer-use for input + simctl/adb for lifecycle. Don't pixel-hunt a web app, don't expect Chrome
@@ -291,6 +307,7 @@ Stop and ask (AskUserQuestion) when:
 
 | File | Purpose |
 |------|---------|
+| `adapted/browser-session.md` | **How to get an authenticated browser without typing a password** — preconditions, detection, rungs 0–5, two-signal verification, multi-role, hygiene |
 | `adapted/feature-test-manifest.md` | The Test Manifest format — the plan spine when present; how to derive one on-demand |
 | `agents/test-runner.md` | The complementary **headless** suite runner (unit/integration/e2e) — not driven here |
 

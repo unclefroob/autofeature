@@ -7,7 +7,7 @@ description: |
     /autofeature:award-ui <AWARD_CODE>
     /autofeature:award-ui <AWARD_CODE> seed: 4821
     /autofeature:award-ui <AWARD_CODE> count: 20 kinds: min_engagement,max_daily_hours
-argument-hint: <AWARD_CODE> [seed: <n>] [count: <n>] [kinds: <rule,rule>]
+argument-hint: "<AWARD_CODE> [seed: <n>] [count: <n>] [kinds: <rule,rule>]"
 ---
 
 # AutoFeature — Award UI Verification
@@ -38,6 +38,18 @@ UI defect by construction.
 
 Seeded throughout. `seed: 4821` reproduces a run byte-for-byte, and a report
 that names its seed is one somebody else can re-run.
+
+## $AUTOFEATURE_HOME
+
+```bash
+# Files ship with the plugin — prefer its root; fall back to an explicit home or dev clone.
+for _d in "$AUTOFEATURE_HOME" "${CLAUDE_PLUGIN_ROOT}" "$HOME/dev/autofeature"; do
+  [ -n "$_d" ] && [ -d "$_d/adapted" ] && { AUTOFEATURE_HOME="$_d"; break; }
+done
+```
+
+If no candidate resolves (none contains `adapted/`), abort with:
+`AutoFeature methodology files not found. They ship with the plugin — reinstall it, or for a dev clone set AUTOFEATURE_HOME=/path/to/autofeature.`
 
 ## Step 1: The stack, and refusing to guess about it
 
@@ -115,6 +127,28 @@ finding the engine raises, with its verdict and clause. A case whose
 `expect.surface` is `clean` is as important as one that breaches: it is the only
 thing that checks a lawful roster does not raise a false alarm, which is the
 defect that erodes trust in the screen fastest.
+
+## Step 3.5: Get an authenticated browser, without typing a password
+
+This command drives a manager screen, so every case needs a manager session — and
+Chrome refuses password fields, so there is no typing your way in. The tenant was
+seeded in Step 2, which means the harness already knows every user it created;
+the session is minted rather than entered.
+
+Follow `$AUTOFEATURE_HOME/adapted/browser-session.md`: check its preconditions
+(the seeded tenant is non-production and its credentials are fixtures, so this
+passes — but check rather than assume), run detection once, and take the highest
+rung the stack supports. If `seed:award` can emit sessions alongside the tenant,
+that is rung 0 and there is nothing else to do.
+
+**Verify before driving, both signals.** The API must name the manager you
+intended and the DOM must show a marker that cannot render anonymously. This
+matters more here than almost anywhere: an unauthenticated roster page renders a
+shell with no shift cards, every case then derives `Not checked`, every chip
+agrees with it, and the run reports a faithful screen having examined nothing —
+the exact failure mode Step 4 warns about for the wrong request parameters,
+arriving by a different road. A session that cannot be confirmed is a run
+failure. It is never a `Not checked`.
 
 ## Step 4: Drive the browser, and get the truth from the same call the UI makes
 
