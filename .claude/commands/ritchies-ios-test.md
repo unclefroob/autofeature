@@ -377,6 +377,35 @@ Pin the SHAPE of a message, not its exact text — a copy edit should not read a
 regression. But do assert it came from the server rather than from a generic
 client string, because that is the property you actually care about.
 
+### A zero from an instrument that cannot produce the event is not a finding
+
+XCUITest's synthetic gestures do NOT trigger SwiftUI's `.refreshable` in this
+app — no `swipeDown`, no velocity variant, no press-drag-and-hold. A run that
+counts zero refresh requests therefore says nothing whatever about the refresh
+path.
+
+The move that turns this from a false report into a real result is a CONTROL:
+run the same gesture against a screen already known to work. Zero on both means
+the harness cannot generate the event; zero on one means the code is broken. One
+of those is worth sending and the other would send someone rewriting a healthy
+path — the most expensive kind of wrong answer, because it is confidently
+actionable.
+
+So before reporting an absence, ask what a working system would have looked like
+through the same instrument. If the answer is "identical", you have measured your
+tools. Say that plainly and name what would answer the question instead: a
+counting proxy in front of the API distinguishes DELIVERED from CLIENT-HUNGUP,
+which is the real distinction when the question is "was it cancelled or did it
+never happen"; a temporary log line turns an unanswerable question into an
+answerable one; and a human with a real finger beats both when the blocker is
+that synthetic input is not real input.
+
+### Pulling open an overscroll needs a press-drag-and-HOLD
+
+A plain swipe springs back before a screenshot lands, so the gap you are trying
+to photograph is gone by the time the capture runs. Hold at the bottom of the
+drag and capture during the hold.
+
 ---
 
 ## Learnings this skill exists to encode
