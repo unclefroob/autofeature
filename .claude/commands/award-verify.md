@@ -185,11 +185,102 @@ SELECT jsonb_agg(r) FROM (
 " > /tmp/award-verify-rows.json
 ```
 
-**Reconcile the count before running.** `npm run verified -- <CODE>` reports how many predicate rows
-the service believes the award has. If this query returns fewer, find out why for every missing row
-before spending on the workflow — a row with no `clause_text` is a legitimate and reportable
-exclusion, a whole table absent from the query above is the defect described under `tables:`. Say the
-two numbers in the report either way, so "verified 65 rows" is never read as "verified the award".
+### Step 2a: Reconcile the two counts. This is a gate, not a suggestion.
+
+The query above filters `clause_text IS NOT NULL AND operative_to IS NULL`. The service's own count of
+this award's predicate rows — the one `predicateFingerprint` hashes and `closure` quotes — filters
+neither. So a row with no `clause_text` is **counted as a predicate and cannot be read by this command**,
+and until now nothing said so: fifteen such rows sat inside a fingerprint of ninety-two while a run
+verified seventy-seven, reported "77 rows", and was recorded as the award's verification. The advice
+that used to live here — *find out why for every missing row* — was addressed to whoever was reading,
+and nobody was.
+
+So compute both numbers and refuse to proceed unless they reconcile. Do not read the count off
+`npm run verified -- <CODE>`: its read form prints the row total only on a never-verified award, so the
+one case where you most need the number is the case where it is missing. Ask the database the same
+question `predicateFingerprint` asks.
+
+```bash
+COUNTED=$(psql_query "
+SELECT count(*) FROM (
+  SELECT 1
+    FROM rule_condition
+   WHERE instrument_id = '<CODE>'
+  UNION ALL SELECT 1
+    FROM rule_span
+   WHERE instrument_id = '<CODE>'
+  UNION ALL SELECT 1
+    FROM rule_overtime_threshold
+   WHERE instrument_id = '<CODE>'
+  UNION ALL SELECT 1
+    FROM rule_junior_band
+   WHERE instrument_id = '<CODE>'
+  UNION ALL SELECT 1
+    FROM rule_allowance
+   WHERE instrument_id = '<CODE>'
+  UNION ALL SELECT 1
+    FROM rule_roster
+   WHERE instrument_id = '<CODE>'
+  UNION ALL SELECT 1
+    FROM rule_leave
+   WHERE instrument_id = '<CODE>'
+  UNION ALL SELECT 1
+    FROM rule_break_placement
+   WHERE instrument_id = '<CODE>'
+  UNION ALL SELECT 1
+    FROM rule_break_entitlement
+   WHERE instrument_id = '<CODE>'
+) t")
+
+PULLED=$(jq 'length' /tmp/award-verify-rows.json)
+```
+
+Then name every row in the difference, one line each, with the reason it is not in the JSON. One branch
+per table, on the same nine tables, differing only in the table name:
+
+```bash
+psql_query "
+SELECT tbl || E'\t' || coalesce(nullif(clause, ''), '(no clause cited)') || E'\t' || reason
+  FROM (
+  SELECT 'rule_condition' AS tbl, clauses AS clause,
+         CASE WHEN clause_text IS NULL
+              THEN 'COUNTED BUT UNREADABLE — clause_text is null'
+              ELSE 'superseded — operative_to is set' END AS reason
+    FROM rule_condition
+   WHERE instrument_id = '<CODE>' AND (clause_text IS NULL OR operative_to IS NOT NULL)
+  UNION ALL
+  -- ... the same branch for rule_span, rule_overtime_threshold, rule_junior_band,
+  -- rule_allowance, rule_roster, rule_leave, rule_break_placement, rule_break_entitlement
+) x ORDER BY 3 DESC, 1, 2"
+```
+
+**The gate, in three parts. Any one of them failing stops the run before the Workflow is invoked.**
+
+1. `COUNTED = PULLED + <rows the query above returned>`. If numbers are still missing after every
+   excluded row has been named, the shortfall is rows in a table the Step 2 query does not have a branch
+   for — the `tables:` defect, which is invisible from inside the workflow because a table it was never
+   handed cannot be reported as skipped. Add the branch, do not proceed.
+2. **No row may carry `COUNTED BUT UNREADABLE`.** This is the fifteen. A predicate row with no
+   `clause_text` is one the service counts and this command structurally cannot check — there are no
+   words to check the fields against — so it is not an exclusion, it is a hole in the verification with
+   a row inside it. Print every one, with its table and clause, and stop. The fix is upstream:
+   `npm run award:load` if the award text was never loaded, or writing the transcription into the row if
+   the passage was never transcribed. Then re-run Step 2.
+3. `superseded` rows are a **legitimate** exclusion and still get named. An award re-mapped after a
+   variation carries a closed historical reading alongside the current one (see "Re-authoring after a
+   variation" in `award-drift.md`), and this command verifies the current reading by default. Naming
+   them is what keeps "legitimate" from quietly absorbing case 2.
+
+Both numbers go in the report and in the `--note` in Step 5 — `verified 77 of 92 predicate rows, 15
+superseded` — so that "verified 77 rows" can never be read as "verified the award". When `tables:` or
+`clauses:` narrowed the run, scope the `COUNTED` query the same way, or the gate compares a filtered
+pull against an unfiltered count and fails on its own filter.
+
+One thing this gate cannot see: a predicate-bearing table in **neither** the query above nor
+`PREDICATE_TABLES`. Both sides of the comparison would be blind to it in exactly the same way and the
+numbers would agree. That is `verification-scope.test.ts`'s job — it parses the table names out of this
+file's own SQL and diffs them against `PREDICATE_TABLES` — and it is the reason the branches above are
+written one table per line rather than folded into something shorter.
 
 Read the file, confirm it parsed and the row count is sane (roughly the same order of magnitude as the
 closure report's clause count for this award). A near-empty result usually means `award-text.sql` hasn't
@@ -227,9 +318,10 @@ Present, in this order:
    an unresolved disagreement is not a pass.
 3. **Confirmed defects** (`medium`/`low`) and **cleared disagreements** — for the review pack, not a
    blocker.
-4. **Coverage of this run**: rows checked, rows skipped for lack of a schema (name which tables), and —
-   if this was a `clauses:`-scoped run — say plainly that the rest of the award was **not** re-checked
-   this time, so the report isn't mistaken for a full re-verification.
+4. **Coverage of this run**: rows checked **against the service's own count** — the `PULLED` of
+   `COUNTED` from Step 2a, with every excluded row named and its reason — rows skipped for lack of a
+   schema (name which tables), and — if this was a `clauses:`-scoped run — say plainly that the rest of
+   the award was **not** re-checked this time, so the report isn't mistaken for a full re-verification.
 
 If invoked standalone (not from `award-map`), append the findings to
 `.autofeature/awards/<CODE>-review.md` under a `## Semantic verification — <date>` heading rather than
