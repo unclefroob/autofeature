@@ -395,6 +395,52 @@ believed. So before a render counts as evidence, name the thing that makes the
 screen identifiable — the title text, the specific colour, an identifier — and
 check the capture actually contains it. "It looked right" is not a location.
 
+### An assertion true in BOTH outcomes is worse than no assertion
+
+This shape appeared six times in one regression pass, and twice the thing under
+test never ran at all while the test reported success:
+
+- asserting an announcement's TITLE, which the feed card also shows, so it passes
+  whether or not the detail ever opened
+- "no error text on screen", which is true of the dashboard too, so it cannot
+  tell an opened Calendar from a tap that went nowhere
+- `firstMatch` on "Notifications", which the drawer also carries
+- a `print` in the no-match branch, so a run where nothing matched exercised
+  nothing and still went green
+
+That last one is not a weak test, it is an ANTI-test: it occupies the space a
+real one would fill and reports success from it, most confidently on exactly the
+days something is broken enough that nothing matches. Any no-match or
+could-not-reach branch is an `XCTFail`, never a `print`.
+
+The general fix is to key on something **structurally present and semantically
+specific** — present regardless of seed data, and incapable of appearing unless
+the thing under test happened. A section header that only one screen renders
+qualifies. A title shown on both the list and the detail does not.
+
+Compute such markers at RUNTIME where they are time-dependent. A hardcoded
+month heading passes all week and fails on the 1st for nothing, and a false
+FAILURE teaches people to ignore a suite just as effectively as a false pass.
+
+Two of these were found only by re-reading suites that were already green, after
+the anti-test framing made "no error text" read as the same defect in different
+clothes. Nothing fails to prompt that; you have to go back.
+
+### A suite that passes once and lies afterwards
+
+Completing a task is a one-way move, so a completion test passes for its author
+and then fails forever with something that reads like a product defect — on a
+suite whose whole purpose is telling those apart. Reset the fixture over the API
+first.
+
+Put the reset in a NAMED METHOD, not `setUp`: `setUp` runs before every test in
+the class, so it would reset the state immediately before the read-back test
+that exists to verify it — passing on run one, failing on run two, for a reason
+with nothing to do with the app. Say so in a comment, or the next person moves
+it back, reasonably, because `setUp` is where a reset belongs.
+
+Then run the suite TWICE, so the reset path is exercised rather than intended.
+
 ### A zero from an instrument that cannot produce the event is not a finding
 
 XCUITest's synthetic gestures do NOT trigger SwiftUI's `.refreshable` in this
