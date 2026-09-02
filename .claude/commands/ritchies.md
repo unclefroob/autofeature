@@ -193,6 +193,39 @@ tap lands on the previous field. Both look exactly like product bugs. Before
 reporting either, run a control — tap a control you know works and confirm focus
 moved.
 
+### The keyboard is a window, and it covers your buttons
+
+Android here is **edge-to-edge**, so the window does NOT shrink when the soft
+keyboard opens. A screen with a pinned action bar must say `imePadding()` on its
+root, or those actions sit UNDERNEATH the keyboard — present in the semantics
+tree, clickable, reporting exactly the bounds you would measure, and physically
+behind an IME window that eats the tap. `LoginScreen`, `LockScreen` and the chat
+composer already do it; copy them.
+
+This shipped in Forms and the symptom was baffling from the outside: one form
+would not submit while another did, from the same build. The difference was that
+the failing form's first field takes TYPING, so filling it raises the keyboard,
+while the working one is completed by TAPS and never raises it. **A form you fill
+by typing was unsubmittable; a form you fill by tapping was fine.** Suspect this
+whenever "the button does nothing" depends on which form, not which build.
+
+The log line that settled it is the shape to look for: a tap at the button's own
+centre recorded `onValue <field> = 'Ryan '`. The tap that should have submitted
+typed a space into the field above.
+
+**`adb shell input keyevent 111` (ESCAPE) does NOT close the IME.** Check with
+`adb shell dumpsys input_method | grep mInputShown` — it still reports true.
+`keyevent 4` (BACK) does close it. Assuming 111 worked turned every subsequent
+dead tap into a mystery and cost most of a debugging session.
+
+**Instrument before you tap again.** Blind tapping answers "did it work"; a
+temporary `Log.d` in the handler answers "what actually happened", which is the
+question. Add them, read `adb logcat`, remove them before committing. A
+layout-level defect like this cannot be seen by any JVM test — the test has to be
+instrumented, raise a real keyboard, and assert the control moved above it (and
+assert the IME inset is non-zero, so a keyboard that fails to appear fails the
+test instead of passing it vacuously).
+
 ### Tap targets, and why a single tap never proves one
 
 Two defects in one day came from the same place, and both looked like working
