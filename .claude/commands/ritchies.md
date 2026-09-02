@@ -218,6 +218,25 @@ typed a space into the field above.
 `keyevent 4` (BACK) does close it. Assuming 111 worked turned every subsequent
 dead tap into a mystery and cost most of a debugging session.
 
+**"No error, no write" has more than one cause, and they look identical.**
+On one screen it was a buried button; on another client, the same symptom was an
+open select menu still eating the tap, so the field was never set and the submit
+tap merely dismissed the menu. From the outside both are: tapped, nothing
+happened, no message. Only an instrument separates them — a log line caught the
+buried-button case typing a space into the field above. So do not diagnose this
+symptom from the symptom; and before submitting, assert the CONTROLS hold what
+you think you set (read a select's label back), not just that you tapped them.
+
+**Every keyboard-dismissal trick is wrong in some way — verify, do not assume.**
+`keyevent 111` does not close the IME on Android (`dumpsys input_method` still
+says `mInputShown=true`); `keyevent 4` does. On iOS, swiping down over the form
+to dismiss passes across the predictive-text bar, and a swipe that lands on a
+suggestion ACCEPTS it — a field typed as "Ryan K" was stored as "Ryan K has ",
+which reads exactly like a text-field defect. Use the Return key for single-line
+fields and a navigation-bar tap for a textarea, then ASSERT the keyboard is
+actually down and ASSERT the field still holds what you typed. A harness that
+edits the user's data is worse than one that fails.
+
 **Instrument before you tap again.** Blind tapping answers "did it work"; a
 temporary `Log.d` in the handler answers "what actually happened", which is the
 question. Add them, read `adb logcat`, remove them before committing. A
