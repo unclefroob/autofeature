@@ -269,6 +269,29 @@ Button { … } label: {
 beside another control, gives away taps to its neighbour. Quieter than a dead
 button, and therefore later to be reported.
 
+**Never assert on user-facing text by searching for words you chose. Dump and
+diff.** A search for "incorrect", "not valid", "wrong", "didn't match" and "did
+not match" came back empty against a screen that plainly said *"That code is not
+right, or it has expired."* The absence of your own vocabulary was reported as
+the absence of a message, and a defect was filed against working code. Copy is
+somebody else's choice — take a baseline of the screen's text, act, diff, and
+read what actually appeared. That surfaces the wording without your having to
+guess a single word of it.
+
+**Re-resolve an element at the moment you use it.** A control captured through
+`allElementsBoundByIndex` binds a POSITION, not a control. Typing into a field
+re-rendered the sheet, the index shifted, and a tap intended for the send-code
+button landed on an unrelated row. It was only noticed because the framework
+reported "not hittable" against an identifier that had never been asked for.
+Anything held across a re-render must be looked up again by predicate.
+
+**"No output" is never evidence on its own.** Five false leads in one night, all
+producing nothing and all meaning something different: a tap outside the window,
+an element tap that silently scrolled first, a disabled button mistaken for a
+covered one, a stale index, and a matcher looking for words nobody wrote. Before
+reporting an absence, establish that the instrument could have detected a
+presence.
+
 **Whether the keyboard covers a control depends on CONTENT LENGTH, not
 construction.** Two sheets with identical code — primary button inside the scroll,
 same modifiers — measured +24pt clear and −119pt covered, because one has four
