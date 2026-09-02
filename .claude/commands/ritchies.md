@@ -193,6 +193,49 @@ tap lands on the previous field. Both look exactly like product bugs. Before
 reporting either, run a control — tap a control you know works and confirm focus
 moved.
 
+### Tap targets, and why a single tap never proves one
+
+Two defects in one day came from the same place, and both looked like working
+code and read as harness failures.
+
+**A SwiftUI Button's hit region is its LABEL, not the frame around it.** Stretch
+a Button with `.frame(maxWidth: .infinity, alignment: .leading)` and the text
+sits hard left while the rest of the row belongs to nobody. `.contentShape`
+applied to the Button from the OUTSIDE does not fix it — it does not re-describe
+the label. The frames and the shape go ON THE LABEL:
+
+```swift
+Button { … } label: {
+    Text("Choose a date")
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(minHeight: 44)
+        .contentShape(Rectangle())
+}
+```
+
+**Then check 44 in BOTH dimensions.** A control 44 tall and 30 wide, sitting
+beside another control, gives away taps to its neighbour. Quieter than a dead
+button, and therefore later to be reported.
+
+**Sweep across a control, right side first.** Tapping one point yields a verdict;
+sweeping yields a BOUNDARY, and the boundary is what names the cause. Start at
+dx=0.9 and only continue if it fails: the far side is the part that breaks, so
+one tap there proves the thing that was broken. Starting at dx=0.1 lands on the
+words and passes on a build whose right half is still dead — which is exactly how
+a half-fix went green here.
+
+**The half-fix was worse than the original bug.** A control dead everywhere gets
+reported the first day. A control that works where the developer taps and fails
+where the user taps survives every green run until someone with a different thumb
+finds it. When a fix turns a reliable failure into an intermittent one, that is a
+regression even though more cases now pass.
+
+**Accessibility data will not save you here.** `hittable=true` and `enabled=true`
+describe the frame, not the label inside it. The tree agrees with the code and
+both disagree with reality, so the only instrument that works is tapping and
+watching — take a screenshot rather than continuing to reason about frames you
+cannot see.
+
 ### Per repo
 
 - **API:** run the jest suite (base test-runner) — it must be green; typecheck + build too (that's the CI gate).
