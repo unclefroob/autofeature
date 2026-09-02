@@ -33,6 +33,35 @@ ran. "It follows the same pattern as the file next to it" is not evidence. Say
 
 ---
 
+
+## Drive the feature. A compile is not a test.
+
+The Mac session's time is the scarcest resource in this pipeline, so spend it on
+the feature that was just built BEFORE any regression suite. Re-running settled
+suites while the new feature has never had a screen opened is the failure this
+section exists to prevent, and it has happened: twelve instrumented suites re-run
+over already-verified cards, while that day's feature went undriven on every
+client.
+
+Send the Mac session, in this order:
+1. **compile** — demand the result before anything else;
+2. **drive the new feature** — every screen, every state, the writes confirmed
+   against the API rather than the screen;
+3. the existing suites;
+4. regression elsewhere, only if something suggests risk.
+
+**Never gate 2 on a deployed API.** The Mac has every repo. A local API is about
+two minutes of work (`.dev-mongo.mjs` + `CATALOG_SYNC_ON_BOOT=on` +
+`<FEATURE>_SEED_ON_BOOT=on`), and the simulator is pointed at it with the launch
+argument `-api_base_url http://127.0.0.1:3100` — `APIConfig` reads that
+UserDefaults key first, so no rebuild, and the simulator reaches the host's
+localhost directly.
+
+If a capability key is new, the feature is INVISIBLE until `catalog:sync` runs.
+Read `GET /api/me/permissions` before looking at a screen, so an absent tile is
+diagnosed rather than guessed at.
+
+
 ## Step 0: Do you already have the answer?
 
 If a Mac session has ALREADY built this exact commit and reported, skip to Step 5 and write the

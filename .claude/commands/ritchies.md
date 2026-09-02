@@ -143,6 +143,58 @@ For the API and each chosen client, spawn the same architect in `implement` mode
 
 ## Override — Step 8: verification (honest, per repo)
 
+**DRIVE THE FEATURE YOU JUST BUILT. FIRST. BEFORE ANY REGRESSION SUITE.**
+
+A build that compiles and a feature that works are different claims, and only the
+second is what the ticket asked for. The failure this rule exists to stop is
+specific and it has happened: a whole afternoon of Mac time went on re-running
+twelve instrumented suites over cards that were ALREADY verified, while the
+feature built that same day had never had a single screen opened on any client.
+Regression on settled work is the cheapest, safest-feeling thing available and it
+is almost never the most valuable. Order of work is:
+
+1. **Drive the new feature on every client you built it for.** Open the screens.
+   Fill the inputs. Press the buttons. Confirm the writes landed server-side.
+2. Then the automated suites.
+3. Then regression over untouched areas — and only if something suggests risk.
+
+**"The API is not deployed" is NEVER a reason to skip step 1.** Run one locally.
+It takes about two minutes and every repo already has what it needs:
+
+```bash
+# in-memory Mongo (mongodb-memory-server is already a dependency)
+node .dev-mongo.mjs &        # MongoMemoryServer on :27077, prints MONGO_READY
+# the API, with .env.local sourced for the mandatory JWT secrets
+PORT=3100 MONGODB_URI=mongodb://127.0.0.1:27077/ritchies \
+  CATALOG_SYNC_ON_BOOT=on \        # publishes any NEW capability key
+  <FEATURE>_SEED_ON_BOOT=on \      # seeds the feature's own fixtures
+  LEVEL_USERS_SEED_ON_BOOT=on SEED_LEVEL_PASSWORD=local1234 \
+  npx tsx src/index.ts
+```
+Accounts are `11111111`…`77777777` / `local1234`. Point each client at it:
+- **Android:** `./gradlew :app:assembleDebug -PapiBaseUrl=http://10.0.2.2:3100`
+- **iOS:** launch argument `-api_base_url http://127.0.0.1:3100` — `APIConfig`
+  reads that UserDefaults key first, so NO rebuild is needed, and the simulator
+  reaches the host's localhost directly. DEBUG accepts plain http.
+- **Web:** point vite at it and drive with Chrome DevTools MCP.
+
+**A NEW CAPABILITY KEY MAKES ITS OWN FEATURE INVISIBLE UNTIL `catalog:sync` RUNS.**
+So a missing tile is ambiguous. Resolve it by reading `GET /api/me/permissions`
+BEFORE looking at any screen, never by reasoning backwards from a blank space.
+And check the Edit-tiles CATALOGUE, not the dashboard grid — the grid is a
+user-chosen subset (and is capped, so something may have to come off first), so
+absence there is evidence of nothing.
+
+**Confirm writes against the API, not the screen.** Count `/api/<domain>` rows
+before and after. Two traps that have each cost real time: the on-screen keyboard
+silently swallows taps on pinned action buttons, so a working button looks dead;
+and coordinates from a UI dump go stale the moment focus changes the layout, so a
+tap lands on the previous field. Both look exactly like product bugs. Before
+reporting either, run a control — tap a control you know works and confirm focus
+moved.
+
+### Per repo
+
 - **API:** run the jest suite (base test-runner) — it must be green; typecheck + build too (that's the CI gate).
 - **Web:** `npm run typecheck` + `npm run lint` (0 errors) + `npm test` (vitest) + `vite build` — all four, locally; SWA CI only builds.
 - **iOS: run `/autofeature:ritchies-ios-test`.** This machine has no Xcode and never will, so iOS verification is a hand-off to a Claude session on the Mac; that skill covers picking the right session (**by machine name, never by project name**), what to send, demanding the compile result before anything else, and the simulator pass. It ends in one of four verdicts and forbids warming one into another.
