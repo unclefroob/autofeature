@@ -269,6 +269,33 @@ Button { … } label: {
 beside another control, gives away taps to its neighbour. Quieter than a dead
 button, and therefore later to be reported.
 
+**FIRST CHECK THE CONTROL IS ON SCREEN. This produced a false defect.**
+
+A control 63pt tall starting at y=864 in an 874pt window has NINE points visible.
+Its frame is reported in full, `exists`, `isHittable` and `isEnabled` are all
+true, and a normalised tap at dx=0.9 lands twenty-two points BELOW the bottom of
+the window — outside the app entirely. Nothing in the accessibility tree says so.
+The tell is the container: a row whose container is taller than the screen
+(402x1242 against a 402x874 window) is inside a scroll view and may be below the
+fold.
+
+So a sweep helper must refuse to run, loudly, on a control not fully within the
+window. Scroll it into view, re-read the frame, THEN sweep. Without that
+precondition the sweep measures VISIBILITY and reports it as a hit region.
+
+**A settle test cannot rescue this, and believing it can is the trap.** The
+obvious hypothesis for "dead at one offset, alive at another" is an animation
+read too early, so you poll until the tree stops moving. Here the tree never
+moved at all — identical element counts on every poll of every run — and that
+stability made the false defect look MORE credible. A stable measurement of the
+wrong thing is stable. Confirming that nothing is changing does not confirm you
+are looking at the right place.
+
+It is also the same shape as the tap-target bug two sections down: the tree
+describes something other than what a finger can touch. When a control reports
+every property as healthy and still does nothing, stop reading properties and
+establish where the tap physically landed.
+
 **Sweep across a control, right side first.** Tapping one point yields a verdict;
 sweeping yields a BOUNDARY, and the boundary is what names the cause. Start at
 dx=0.9 and only continue if it fails: the far side is the part that breaks, so
