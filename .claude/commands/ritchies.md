@@ -269,6 +269,27 @@ Button { … } label: {
 beside another control, gives away taps to its neighbour. Quieter than a dead
 button, and therefore later to be reported.
 
+**Whether the keyboard covers a control depends on CONTENT LENGTH, not
+construction.** Two sheets with identical code — primary button inside the scroll,
+same modifiers — measured +24pt clear and −119pt covered, because one has four
+short fields above its button and the other has a free-text area. So "this screen
+matches one that is fine" proves nothing, and a screen that passes today fails
+when somebody adds a field. Measure each one, and prefer pinning the primary in
+`safeAreaInset(edge: .bottom)` (iOS) or `imePadding()` on a pinned bar (Android)
+so the answer stops depending on how much text is above it.
+
+**An ELEMENT tap cannot detect this at all.** XCUITest scrolls a control into
+view before tapping it, so `element.tap()` passes on a build where the button is
+buried — it proves the control is reachable AFTER scrolling, not that a finger
+can reach it where it is drawn. Only a tap at an absolute window coordinate sees
+the truth. Any keyboard test written with element taps is measuring nothing,
+which is a large and quiet category.
+
+**Read `isEnabled` BEFORE tapping, or you cannot tell two failures apart.** "The
+button is disabled because the form is incomplete" and "the button is covered by
+the keyboard" both look like a tap that did nothing. One is correct behaviour and
+one is a defect. A single tap cannot separate them and the wrong one gets filed.
+
 **FIRST CHECK THE CONTROL IS ON SCREEN. This produced a false defect.**
 
 A control 63pt tall starting at y=864 in an 874pt window has NINE points visible.
