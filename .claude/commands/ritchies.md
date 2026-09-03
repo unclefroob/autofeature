@@ -245,6 +245,33 @@ instrumented, raise a real keyboard, and assert the control moved above it (and
 assert the IME inset is non-zero, so a keyboard that fails to appear fails the
 test instead of passing it vacuously).
 
+### One rule, two copies, on opposite sides of a boundary
+
+Three separate bugs in one day, all the same shape, and the shape is sharper than
+"do not duplicate":
+
+| The rule | Copy A | Copy B |
+|---|---|---|
+| which tiles the home grid shows | capabilities-changed path | server-seed path |
+| what a Settings row is called | server label | client screen title |
+| what a seeded user record holds | the CLI seeder | the in-process seeder |
+
+In every case the copies sat **across a boundary that stopped anyone reading them
+together** — two code paths, two repositories, two entry points. That is why
+reviewing either side alone looks correct, and why fixing one copy feels
+finished.
+
+**The tell is a green test with broken behaviour.** Patch copy A, the test that
+covers copy A passes, and the path that actually runs is still wrong. That
+happened with the home grid (fixed on one path, still broken on relaunch), with
+the labels (landing fixed, screens still saying the old thing), and with the
+seeder (CLI patched, boot path untouched, and the new test failed while the code
+looked right).
+
+So when you fix something that has a name — an ordering, a label, a default —
+**grep for the rule, not the file.** If it appears twice, extract one function
+before fixing either. Two careful edits is the failure mode, not the remedy.
+
 ### Tap targets, and why a single tap never proves one
 
 Two defects in one day came from the same place, and both looked like working
