@@ -278,6 +278,15 @@ somebody else's choice — take a baseline of the screen's text, act, diff, and
 read what actually appeared. That surfaces the wording without your having to
 guess a single word of it.
 
+**Do not assume a control's LABEL either, and read state BEFORE you act.** A
+helper that looked for a control labelled exactly "Back" found nothing on a
+screen whose exit says "Back to dashboard", and reported a dead end on a screen
+that exits perfectly well — manufacturing, from the opposite direction, the exact
+defect it had been sent to check. The same run read "which screen am I on" AFTER
+tapping rather than before, so a transition that did happen printed as one that
+did not. Enumerate the controls that are actually present, name the one you
+tapped in the log, and sample position before acting as well as after.
+
 **Re-resolve an element at the moment you use it.** A control captured through
 `allElementsBoundByIndex` binds a POSITION, not a control. Typing into a field
 re-rendered the sheet, the index shifted, and a tap intended for the send-code
