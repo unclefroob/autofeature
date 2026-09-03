@@ -321,6 +321,26 @@ button landed on an unrelated row. It was only noticed because the framework
 reported "not hittable" against an identifier that had never been asked for.
 Anything held across a re-render must be looked up again by predicate.
 
+**A test's wait must EXCEED the app's own timeout, or the test manufactures the
+failure it is looking for.** A harness waited 40s for a row while the client was
+correctly waiting up to 120s for the response — so on a cold container the test
+gave up first and reported a broken screen, while the app was behaving exactly as
+designed. The arithmetic is the whole bug:
+
+```
+app request timeout   120s
+harness wait           40s   <- fails first, every cold start
+```
+
+The trap is that it does not fail every run. It fails only when the server is
+cold, which is precisely when a reader is primed to believe a cold-start
+regression. So the instrument produces its most convincing false positive in the
+one condition it was built to test.
+
+When you raise a client timeout, grep the test suite for every wait that could
+sit under the new value. One that has not bitten yet is usually one that runs
+after something else has already warmed the server, not one that is safe.
+
 **"No output" is never evidence on its own.** Five false leads in one night, all
 producing nothing and all meaning something different: a tap outside the window,
 an element tap that silently scrolled first, a disabled button mistaken for a
