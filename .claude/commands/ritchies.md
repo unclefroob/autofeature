@@ -337,9 +337,21 @@ cold, which is precisely when a reader is primed to believe a cold-start
 regression. So the instrument produces its most convincing false positive in the
 one condition it was built to test.
 
-When you raise a client timeout, grep the test suite for every wait that could
-sit under the new value. One that has not bitten yet is usually one that runs
-after something else has already warmed the server, not one that is safe.
+When you raise a client timeout, find every wait that **gates on a SERVER
+RESPONSE** and now sits under it. A wait on locally-rendered state is not in
+scope however small it is — a wait for a button to appear after a local tap sits
+under any network timeout and always will, correctly.
+
+That qualifier is not pedantry. Run without it on this suite and you get 107 hits
+out of 118 waits, a diff nobody should make and no reason to suspect you are
+wrong. With it you get two, and both turn out to be the same assertion on the
+same endpoint — which is the tell that it is one mistake made twice rather than
+several independent numbers.
+
+The discriminator: does the element's appearance require a network round trip
+that has not already happened in this test? One that has not bitten yet is
+usually one that runs after something else warmed the server, not one that is
+safe.
 
 **"No output" is never evidence on its own.** Five false leads in one night, all
 producing nothing and all meaning something different: a tap outside the window,
