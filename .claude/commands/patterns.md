@@ -71,7 +71,7 @@ Spawn one lightweight agent — do **not** grep in main context:
 Agent({
   description: "Patterns surface map",
   subagent_type: "Explore",
-  model: "haiku",   // enumerate-only — orchestrator/model-tiers.md
+  model: "sonnet",  // floor — orchestrator/model-tiers.md
   prompt: "Read the 'Audit procedure' step 1 of $AUTOFEATURE_HOME/adapted/feature-patterns-audit.md
   and produce the surface map for the repo at [pwd]:
   - src/ structure (top 2 levels) with file counts per layer directory

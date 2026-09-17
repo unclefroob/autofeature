@@ -243,7 +243,7 @@ if (WEB) {
 URL: ${c.url}
 Cited for: "${c.what}"
 supported = "confirmed" only if the page loads AND states the figure/fact; "unconfirmed" if it loads but the number is absent or different; "dead" if it 404s or doesn't resolve. foundFigure = the actual number on the page (or ''). stale = true if the supporting figure is clearly >18 months old.`,
-      { label: `verify:${c.kind}`, phase: 'Verify', schema: CLAIM_VERDICT, model: 'haiku' }
+      { label: `verify:${c.kind}`, phase: 'Verify', schema: CLAIM_VERDICT, model: 'sonnet' }
     ).then(v => ({ ...c, ...v }))
   ))).filter(Boolean)
   for (const v of verified) {

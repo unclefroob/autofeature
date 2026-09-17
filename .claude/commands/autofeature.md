@@ -48,11 +48,13 @@ The one legitimate stop is a fact that cannot exist for anyone — a judgement, 
 
 Spawned agents and Workflow phases inherit the session model unless given an explicit `model:` — so on
 Opus the whole fan-out is Opus, the main cost driver. **Every spawn in this pipeline carries a
-`model:` per `$AUTOFEATURE_HOME/orchestrator/model-tiers.md`** (active profile: BALANCED — Sonnet
-workhorse, Haiku for mechanical test-runner/maps, Opus only for the few highest-judgment steps).
+`model:` per `$AUTOFEATURE_HOME/orchestrator/model-tiers.md`**. Floor is Sonnet. After the scope gate
+the orchestrator writes a **Model Plan** into the Feature Brief (Step 3b): base tiers, raised to Opus
+only where an escalation rule fires (cross-repo, high-risk surface, destructive data change, unclear
+design) or an agent fails twice. Spawns read `model:` from that plan.
 Skills and this orchestrator loop follow the session model, so for the cheapest runs invoke
-`/autofeature` on Sonnet; the deep-reasoning steps still self-elevate to Opus via their pins. A run may
-pass `model: economy|balanced|quality` (or `model: opus|sonnet|haiku`) to shift the whole fleet.
+`/autofeature` on Sonnet; escalated steps still self-elevate to Opus. A run may pass
+`model: economy|balanced|quality` (or `model: opus|sonnet`) to shift the whole fleet.
 
 ---
 
@@ -155,7 +157,7 @@ Feature request = everything after `/autofeature` in the user's message.
 
 Only interrupt for a **User Challenge**: when implementation would need to fundamentally contradict the stated feature request.
 
-**Model tier:** scan the request for a `model:` override (`economy|balanced|quality` or `opus|sonnet|haiku`); absent → BALANCED. Apply it per `$AUTOFEATURE_HOME/orchestrator/model-tiers.md` to every agent spawned below.
+**Model tier:** scan the request for a `model:` override (`economy|balanced|quality` or `opus|sonnet`; `haiku` → `sonnet`); absent → BALANCED. Until the Model Plan exists (Step 3b), spawns use base tiers from `$AUTOFEATURE_HOME/orchestrator/model-tiers.md` (or the forced tier); after it, every spawn takes its `model:` from the plan.
 
 **Create pipeline tasks via TaskCreate:**
 
@@ -258,6 +260,21 @@ The scope tier determines:
 - Whether `mongo-data-modeler` runs
 - Whether `simplify` skill runs in Step 8
 
+### 3b. Model Plan
+
+Read the **Escalation rules** in `$AUTOFEATURE_HOME/orchestrator/model-tiers.md`. Evaluate E1–E3
+against the brief (`## Context`, `## Scope`, feature request) under the run's profile, and append the
+`## Model Plan` section to the Feature Brief in the format that file specifies — one row per task this
+run will spawn, each with its model and the rule (or `base`) that set it. E4 is evaluated later (after
+Step 4.5 and Step 5a) and updates the plan in place.
+
+`micro` scope: write `**Model Plan:** all sonnet (micro — no fan-out)` and move on.
+
+**CHECKPOINT** mode: show the plan with the scope classification in one prompt; the user may change
+any row before proceeding.
+
+On resume, reuse the plan already in the brief.
+
 ---
 
 ## Step 4: Cross-Repo Detection
@@ -327,6 +344,9 @@ in-scope gaps.
 > C) Revise the feature request — [tell me what to change]
 > D) Abort
 
+**Model Plan:** if a 🔴 broken-flow finding was folded into scope, rule **E4** fires — set the
+architects' `design` rows in the `## Model Plan` to `opus` (reason: `E4 — [finding]`).
+
 ---
 
 ## Step 5: Technical Planning
@@ -337,7 +357,7 @@ in-scope gaps.
 Agent({
   description: "Autofeature technical plan",
   subagent_type: "Plan",
-  model: "sonnet",            // cross-repo → "opus" (orchestrator/model-tiers.md)
+  model: "[Model Plan: Plan]", // opus if E1/E2/E3 fired, else sonnet — orchestrator/model-tiers.md
   prompt: "Read the Feature Brief at .autofeature/designs/[slug]-[date].md.
   Also read $AUTOFEATURE_HOME/adapted/feature-plan.md for methodology.
 
@@ -359,6 +379,9 @@ Agent({
 })
 ```
 
+**Model Plan:** if the summary reports a User Challenge that was resolved by changing the approach,
+rule **E4** fires — set the architects' `design` rows to `opus` before 5b.
+
 ### 5b. Parallel stack-specialist designs (skip for `micro` tier)
 
 After the Plan subagent returns, fan out the architects in parallel based on STACK and scope tier:
@@ -368,7 +391,7 @@ For each applicable architect, compose a spawn prompt:
 2. Append: feature brief path, mode=`design`, repo path
 3. If `PATTERNS_FILE` is set, append: `Patterns file: [path] ([status]) — its Canonical/Banned
    decisions override repo sampling; delegate to its canonical-helper registry; where silent, match the repo.`
-4. Spawn via `Agent` (subagent_type=`general-purpose`, **`model: "sonnet"`** per `orchestrator/model-tiers.md`)
+4. Spawn via `Agent` (subagent_type=`general-purpose`, **`model:` = that agent's `design` row in the Model Plan** — `opus` where E2/E4 fired (or E3 for `mongo-data-modeler`), else `sonnet`)
 
 **Send all applicable Agent calls in a SINGLE message for true parallelism.**
 
@@ -393,7 +416,7 @@ Read $AUTOFEATURE_HOME/agents/api-contract-broker.md
 Agent({
   description: "API contract reconciliation",
   subagent_type: "general-purpose",
-  model: "sonnet",            // orchestrator/model-tiers.md
+  model: "[Model Plan: api-contract-broker]", // opus when E1 (cross-repo) fired — orchestrator/model-tiers.md
   prompt: "[api-contract-broker.md content]
 
   Job: Reconcile contracts across the architects' plans in .autofeature/designs/[slug]-[date].md.
@@ -460,7 +483,7 @@ Skip for: data-display tweaks, admin-only screens, single-component edits.
 For each architect that produced a design, spawn the same agent in `implement` mode. Send all in a single message for parallelism:
 
 ```
-[single message] — all architects at model: "sonnet" (orchestrator/model-tiers.md)
+[single message] — implementers at model: "sonnet" (base; raised only via failure escalation — orchestrator/model-tiers.md)
 Agent({ description: "Backend impl", model: "sonnet", prompt: "[express-mongo-architect.md] + mode=implement + brief path + branch + PATTERNS_FILE line (if set)" })
 Agent({ description: "Web impl",     model: "sonnet", prompt: "[react-architect.md] + mode=implement + brief path + branch + PATTERNS_FILE line (if set)" })
 Agent({ description: "Mobile impl",  model: "sonnet", prompt: "[react-native-architect.md] + mode=implement + brief path + branch + PATTERNS_FILE line (if set)" })
@@ -528,7 +551,7 @@ Read $AUTOFEATURE_HOME/agents/test-runner.md
 Agent({
   description: "Run unit/integration suite",
   subagent_type: "general-purpose",
-  model: "haiku",             // mechanical — orchestrator/model-tiers.md
+  model: "sonnet",            // floor — orchestrator/model-tiers.md
   prompt: "[test-runner.md content]
 
   Job: Run the unit and integration test suite for repo at [pwd].
@@ -545,7 +568,7 @@ The test-runner returns a <2KB summary. The orchestrator NEVER ingests full test
 Agent({
   description: "Run Playwright suite",
   subagent_type: "general-purpose",
-  model: "haiku",             // mechanical — orchestrator/model-tiers.md
+  model: "sonnet",            // floor — orchestrator/model-tiers.md
   prompt: "[test-runner.md content]
 
   Job: Run the Playwright E2E suite for repo at [pwd].
@@ -563,6 +586,11 @@ For coordinated runs, run unit tests in EACH repo. Track results in `.autofeatur
 If tests fail: invoke `$AUTOFEATURE_HOME/adapted/feature-investigate.md` before attempting a fix. Iron Law: no fix without root cause. Write a regression test that fails without the fix and passes with it. Re-run test-runner after fixing.
 
 If 3 hypotheses fail during debugging → Emergency Stop, escalate to user.
+
+**Failure escalation:** when a fix is handed back to a specialist (re-spawning the owning architect in
+`implement` mode with the failure evidence), follow the retry ladder in `orchestrator/model-tiers.md` —
+1st retry `sonnet`, 2nd retry `opus`, then Emergency Stop. Append each escalation to the Model Plan's
+**Escalations during run**.
 
 **CHECKPOINT:**
 > Verification:
@@ -582,7 +610,7 @@ Read `$AUTOFEATURE_HOME/adapted/feature-review.md`.
 
 ### 9a. Parallel review fan-out
 
-Spawn these as simultaneous agents in a SINGLE message (each at **`model: "sonnet"`** per `orchestrator/model-tiers.md`):
+Spawn these as simultaneous agents in a SINGLE message (each at **`model: "sonnet"`**, except the critical pass, which takes its Model Plan row — `opus` when E2 fired):
 
 1. **Critical pass** — security, race conditions, SQL/NoSQL injection, unhandled enums, mass-assignment
 2. **Informational pass** — type safety, async issues, completeness gaps

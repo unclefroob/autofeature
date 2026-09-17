@@ -21,7 +21,7 @@ The autofeature pipeline invokes other installed skills at specific phases. This
 
 Note: `Plan` and `Explore` are built-in subagent_types invoked via the `Agent` tool. `frontend-design`, `security-review`, `simplify` are user-invocable skills invoked via the `Skill` tool.
 
-**Model tier:** every `Agent({...})` below carries a `model:` per `model-tiers.md` (active profile BALANCED — Explore/Plan on Sonnet, mechanical scans on Haiku). Skills and the orchestrator loop run on the session model, so run the command on Sonnet for the cheapest pass.
+**Model tier:** every `Agent({...})` below carries a `model:` per `model-tiers.md` (active profile BALANCED — floor Sonnet, Opus via the Model Plan escalation rules). Skills and the orchestrator loop run on the session model, so run the command on Sonnet for the cheapest pass.
 
 ## Step 2: Explore agent for context gathering
 

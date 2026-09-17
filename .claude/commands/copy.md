@@ -69,7 +69,7 @@ Spawn a lightweight scan to enumerate where copy lives — do **not** grep in ma
 Agent({
   description: "Copy surface map",
   subagent_type: "Explore",
-  model: "haiku",   // enumerate-only — orchestrator/model-tiers.md
+  model: "sonnet",  // floor — orchestrator/model-tiers.md
   prompt: "Read the 'Where copy lives' section of $AUTOFEATURE_HOME/adapted/feature-copy-audit.md
   and run its discovery commands in [pwd or SCAN_PATH].
 

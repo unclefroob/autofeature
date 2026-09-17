@@ -326,16 +326,20 @@ See `MANIFEST.md` for a detailed breakdown of what was kept vs. removed from gst
 
 The pipeline fans out a lot — Explore, Plan, 1–3 architects, the test-runner, 3–5 parallel reviewers,
 and the review/market Workflows (4–8 agents each). Every spawn is pinned to the cheapest capable model
-tier so the whole fan-out doesn't inherit your (possibly Opus) session model:
+tier so the whole fan-out doesn't inherit your (possibly Opus) session model. **Floor is Sonnet** — nothing
+runs on Haiku.
 
-- **Haiku** — mechanical work: test-runner, citation re-fetch, surface maps.
-- **Sonnet** — the workhorse: context, planning, all architects (design + implement), code review, analysts.
-- **Opus** — only the few highest-judgment steps: the market-review memo, the adversarial bear-case, cross-repo planning.
+- **Sonnet** — the base tier for everything: context, maps, test-runner, planning, all architects, code review, analysts.
+- **Opus (fixed)** — the market-review memo, the adversarial bear-case, copy rewrites.
+- **Opus (dynamic)** — after the scope gate, `/autofeature` writes a **Model Plan** into the Feature Brief.
+  Escalation rules raise specific tasks to Opus for that run: cross-repo scope (Plan, contract broker),
+  high-risk surfaces like auth/permissions/payments (Plan, owning architect's design, critical review),
+  destructive data migrations (data modeler, Plan), and unclear designs (architects' design). An agent
+  that fails its gate twice retries on Opus before an Emergency Stop.
 
-This is the **BALANCED** profile. Retune it (or switch to economy / quality-preserving, or pass a
-per-run `model:` override) in `orchestrator/model-tiers.md`. Skills and the orchestrator's own loop
-follow your session model — **run the command on Sonnet for the cheapest pass**; the deep-reasoning
-steps still self-elevate to Opus via their pins.
+Rules, profiles (`economy` / `balanced` / `quality`) and the per-run `model:` override live in
+`orchestrator/model-tiers.md`. Skills and the orchestrator's own loop follow your session model —
+**run the command on Sonnet for the cheapest pass**; escalated steps still self-elevate to Opus.
 
 ---
 

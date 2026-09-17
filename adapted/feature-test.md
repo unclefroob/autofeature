@@ -96,7 +96,7 @@ the *reading* is delegated.
 Agent({
   description: "Test surface map",
   subagent_type: "Explore",
-  model: "haiku",   // surface map — orchestrator/model-tiers.md
+  model: "sonnet",  // floor — orchestrator/model-tiers.md
   prompt: "Map the user-facing, testable surface of this app for acceptance testing.
   Repo: [pwd]. Scope: [whole product | changes on branch <name> vs <base> | features: <list>].
   Return (paths + one-line role, no large excerpts):

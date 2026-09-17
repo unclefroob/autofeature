@@ -172,7 +172,7 @@ Written to `.autofeature/patterns-audit-[YYYY-MM-DD].md`:
 
 ## Audit procedure (audit mode)
 
-1. **Surface map** — one Explore agent (haiku): src structure with file counts per layer,
+1. **Surface map** — one Explore agent (sonnet): src structure with file counts per layer,
    package.json framework/validation/logging deps, tooling configs (+ whether CI/husky exists),
    convention docs, era spread (`git log --diff-filter=A --format=%ad` on a sample per directory).
 2. **Census fan-out** — general-purpose agents (sonnet), single parallel message, grouped so each

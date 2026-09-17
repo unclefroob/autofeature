@@ -152,7 +152,7 @@ Produce a Product Map:
 ${MODE === 'feature' ? '- proposedFeature: one paragraph on what the brief proposes.' : ''}
 
 Ground everything in real files — do not invent surfaces that don't exist in the repo. Be concise.`,
-  { schema: PRODUCT_MAP, phase: 'Map', model: 'haiku' }   // tiers: orchestrator/model-tiers.md
+  { schema: PRODUCT_MAP, phase: 'Map', model: 'sonnet' }   // tiers: orchestrator/model-tiers.md
 )
 log(`Mapped ${map.surfaces?.length || 0} surfaces, ${map.journeys?.length || 0} journeys`)
 
