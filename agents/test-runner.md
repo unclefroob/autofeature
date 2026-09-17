@@ -148,4 +148,23 @@ npx playwright test --reporter=list 2>&1 | tail -100
 
 # Single-file scoped run
 npx vitest run src/things/things.test.ts
+
+# Gradle/Kotlin (JVM) — check for a daemon BEFORE running, so you know what's yours to stop after
+./gradlew --status 2>&1 | tail -20
+./gradlew test 2>&1 | tail -150
+
+# Swift/Xcode — xcodebuild is a one-shot compile, no persistent daemon to track
+xcodebuild test -scheme <scheme> -destination 'platform=iOS Simulator,name=<device>' 2>&1 | tail -150
 ```
+
+## Gradle/Kotlin daemon hygiene
+
+`./gradlew` defaults to a persistent background daemon (often `-Xmx4g`+) that otherwise idles for
+hours after this one-shot run ends, and the Kotlin compiler plugin spins up a second, separate daemon
+alongside it. Since you don't get a follow-up run to benefit from the warm cache, the standing memory
+cost isn't worth it here:
+
+- Before running, note whether `./gradlew --status` already shows a daemon — that's someone's live
+  session (an IDE, another terminal); it is not yours to touch.
+- If it showed none, run `./gradlew --stop` after you're done reporting, even on a failed run.
+- Never `--stop` a daemon that was already up before you started.
