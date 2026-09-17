@@ -57,7 +57,7 @@ Parse from the arguments (all optional):
 
 | Intent | Args | Default if absent |
 |--------|------|-------------------|
-| **Target** | `url: …` | Detect a running dev server (`vite`/`next`/`expo web` port); if none, offer to start it |
+| **Target** | `url: …` | Detect a running dev server (`vite`/`next`/`expo web` port); if none, offer to start it (note the PID — see Step 6) |
 | **Scope** | `whole`/`product`, `branch`, named flows, `manifest: <path>` | A manifest for this branch if one exists; else ask |
 | **Roles** | `roles: manager,employee` | Every role the seeder creates — read it, don't assume one |
 | **Seeding** | `seed` (re-seed first) | Use existing data; re-seed only if verification says the fixtures are gone |
@@ -132,6 +132,10 @@ reference it by path — never dump full logs into the report.
 
 Delete the data the run created before reporting; leftover fixtures poison the next run's assertions.
 Close every tab you opened, leave the user's own alone.
+
+If Step 1 started the dev server, stop it now (kill the PID you recorded) — per
+`feature-test.md` **Step 4.5**. Never stop a server that was already running before this run; that's
+the user's own session, not a fixture. Do this even on FAIL/BLOCKED.
 
 Then per `feature-test.md` **Step 5**: offer to spin the top failures into
 `/autofeature [skip-product-review] fix: …` runs with repro + evidence attached. This command

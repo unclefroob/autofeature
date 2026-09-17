@@ -164,7 +164,8 @@ Load: `ToolSearch({ query: "claude-in-chrome", max_results: 30 })`. Key tools:
 > Local build with no running server? Use the **Claude Preview** MCP
 > (`ToolSearch({ query: "preview", max_results: 30 })` → `preview_start` on the dev command, then
 > `preview_navigate`/`preview_click`/`preview_fill`/`preview_screenshot`/`preview_console_logs`/
-> `preview_network`) instead of Chrome MCP.
+> `preview_network`) instead of Chrome MCP. Whatever you use to start it, this is a process you must
+> account for in **Step 4.5** below.
 
 ### iOS — simulator + computer-use
 
@@ -175,6 +176,8 @@ these); **input** via computer-use on the Simulator window.
 1. **Boot + launch the app:**
    ```bash
    xcrun simctl list devices available | grep -i iphone        # pick a booted/available device
+   # record whether the device was ALREADY booted — only a device you boot is yours to shut down
+   xcrun simctl list devices | grep "iPhone 15" | grep -q Booted && WAS_BOOTED=1 || WAS_BOOTED=0
    xcrun simctl boot "iPhone 15" 2>/dev/null; open -a Simulator
    # Expo:        npx expo run:ios            (or press i against a running `expo start`)
    # bare RN:     npx react-native run-ios
@@ -182,7 +185,8 @@ these); **input** via computer-use on the Simulator window.
    #              && xcrun simctl install booted <built.app> && xcrun simctl launch booted <bundle-id>
    ```
    If the app won't build/launch → flows are **BLOCKED (app would not launch)**; capture the build
-   error tail (not the full log).
+   error tail (not the full log). If you started a Metro/Expo bundler for this, note its PID — it's a
+   process you must account for in **Step 4.5**.
 2. **Grant input access:** computer-use needs the Simulator —
    `ToolSearch({ query: "computer-use", max_results: 30 })` then `request_access` for **Simulator**
    (native app → full tier: clicks + typing allowed).
@@ -196,13 +200,15 @@ these); **input** via computer-use on the Simulator window.
 
 1. **Boot + install:**
    ```bash
-   emulator -list-avds && emulator -avd <avd> -no-snapshot &      # or rely on a running emulator
+   adb devices | grep -q device$ && WAS_RUNNING=1 || WAS_RUNNING=0   # an emulator already up is not yours to kill
+   [ "$WAS_RUNNING" = 0 ] && { emulator -list-avds && emulator -avd <avd> -no-snapshot & EMU_PID=$!; }
    adb wait-for-device
    # Expo:    npx expo run:android
    # bare RN: npx react-native run-android
    # apk:     adb install -r <app>.apk && adb shell am start -n <pkg>/<activity>
    ```
-   Won't build/launch → **BLOCKED**; capture the error tail.
+   Won't build/launch → **BLOCKED**; capture the error tail. If you started the emulator or a
+   Metro/Expo bundler, keep `$EMU_PID`/its PID — it's a process you must account for in **Step 4.5**.
 2. **Drive:** computer-use `request_access` for the emulator window, then `screenshot` →
    `left_click` / `type` / `scroll`. (Or `adb shell input tap x y` / `input text` as an alternative —
    note which you used.)
@@ -252,6 +258,30 @@ Write `.autofeature/test-runs/<timestamp>-report.md` and print the summary. Form
 
 Severity: **critical** (core flow broken / data loss / security) · **high** (feature broken, no
 workaround) · **medium** (degraded) · **low** (cosmetic). Credentials are `••••` everywhere.
+
+---
+
+## Step 4.5: Tear down what you started
+
+Before Step 3 started anything (dev server, Preview MCP session, Metro/Expo bundler, iOS Simulator
+device, Android emulator), it should have checked whether that thing was already running and noted the
+answer. Now act on it:
+
+- **Stop only what this run started.** A dev server/bundler/simulator/emulator that was already up
+  before Step 3 touched it belongs to the user's own work — leave it running.
+- **Stop everything you did start**, even on FAIL/BLOCKED — teardown is not conditional on a clean run:
+  - Web dev server or Preview MCP session you started: kill the PID you recorded, or call the tool's
+    matching stop (`preview_stop` if the Preview MCP exposes one).
+  - Metro/Expo bundler you started: kill its PID.
+  - iOS Simulator device you booted (`$WAS_BOOTED=0`): `xcrun simctl shutdown <device>`.
+  - Android emulator you started (`$WAS_RUNNING=0`): kill `$EMU_PID`.
+- **When in doubt, don't guess — check first**, the same way Step 3 checked before starting: a `kill`
+  on a PID you didn't record, or a blind `pkill -f node`, can take out something unrelated the user is
+  running. If you lost track of what you started, say so in the report's Notes rather than killing
+  broadly.
+
+This is the same discipline as the Gradle/Kotlin daemons a build leaves behind: a process spawned to
+answer one question should not go on drawing memory after the question is answered.
 
 ---
 

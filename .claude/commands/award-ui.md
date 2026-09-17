@@ -71,6 +71,11 @@ done
   it can build anybody.
 - **3000** — shiftos-manager. `npm start`. Slow to boot; wait for it.
 
+Whichever ports came back **DOWN**, note them — those are the processes this run is
+starting, and the only ones Step 5 is allowed to stop. A port already **up** belongs
+to whatever the user was already running; never touch it. Record the PID of anything
+you start (e.g. `npm run dev & echo $! > .autofeature/test-runs/award-ui-<ts>.pid`).
+
 The manager reads `REACT_APP_API_URL` from its `.env`, which points at 5112.
 
 ## Step 2: Seed a tenant, from the award itself
@@ -229,6 +234,12 @@ Delete the shifts the run created before reporting. A failed run that leaves
 shifts behind poisons the next one: the second run's cases collide with the
 first's rosters and start failing on consecutive-days and weekly-hours rules
 that have nothing to do with them. Re-seeding also works and is slower.
+
+Then stop whatever Step 1 started — only the ports that came back **DOWN** and got
+launched by this run (kill the recorded PID). Leave every service that was already
+up alone, `shiftos-mongo` included if it was already running. Do this even on a
+failed or partial run — three `npm run dev`/`npm start` processes left resident is
+the same class of leak as an un-stopped Gradle daemon, just node instead of the JVM.
 
 ## Step 6: Report
 
