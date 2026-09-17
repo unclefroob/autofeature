@@ -84,7 +84,7 @@ If no candidate resolves (none contains `adapted/`), abort with: `AutoFeature me
 ## Pipeline
 
 ```
-resume? → [trello?] → interrogate → scope-gate → product-review (pre-build) → plan → branch → cross-repo-coord →
+resume? → [trello?] → triage (non-build → routed elsewhere) → interrogate → scope-gate → product-review (pre-build) → plan → branch → cross-repo-coord →
   implement (parallel specialists) → verify (test-runner) → review (parallel + skills) → ship → test-manifest
 ```
 
@@ -129,6 +129,25 @@ On return, `FEATURE_REQUEST` is set to either the card content or the original p
 If `trello-scope.md` set `TRELLO_SCOPE_TIER`, skip the scope gate classification in Step 3 and use that value directly.
 
 **If not found:** Skip this step entirely. `FEATURE_REQUEST` = original ARGUMENTS.
+
+---
+
+## Step 0.75: Intent Triage
+
+Not every request is a build. "Have a look into the iOS app and see how the styles are" wants a
+report, from a SwiftUI specialist, on Sonnet — not a Feature Brief and a branch.
+
+Read and follow `$AUTOFEATURE_HOME/orchestrator/task-router.md` with `FEATURE_REQUEST`. It classifies
+the intent, resolves the target repo, picks the route and model, and emits a Route Card.
+
+- **Route is the `/autofeature` pipeline** (`build`/`fix` with no more specific command) → continue to
+  Step 1 with `FEATURE_REQUEST` unchanged. Carry the resolved `TARGET_REPO` into Step 2.
+- **Any other route** → dispatch it as the router says and **stop this pipeline**. No mode question,
+  no brief, no branch, no pipeline tasks.
+
+Skip this step (straight to Step 1) when resuming a checkpoint, when Step 0.5 loaded a Trello card, or
+when the request starts with `build:` or `fix:` — the user has already said it is a build. A mode
+keyword alone doesn't skip triage: a clear build passes through it without a question anyway.
 
 ---
 

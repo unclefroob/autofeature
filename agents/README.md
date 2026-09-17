@@ -38,6 +38,12 @@ Why this pattern:
 - Edit a file → next run picks up the change, no reinstall
 - The fleet works on any machine that has this repo cloned
 
+**Survey mode.** Besides `design` and `implement`, the stack architects are also spawned in a
+read-only `survey` mode by `orchestrator/task-router.md`, for questions like "how are the styles in
+the iOS app". The job block for that mode (no writes, file:line citations, grep counts, ranked
+findings, at most 3 suggested next prompts) lives in the router and overrides the agent file's
+design/implement sections. The agent file supplies the standards the survey judges against.
+
 **Exception — the review/analysis agents** (`product-strategist`, and the market-review quartet
 `market-analyst` / `market-gap-analyst` / `vc-analyst` / `bear-case-analyst`): these are driven by
 the **Workflow** tool, not the `Agent`-fan-out pattern above. The orchestrator doesn't read the

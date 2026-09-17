@@ -50,6 +50,25 @@ Or just:
 ```
 If no mode is specified, Claude will ask.
 
+### Not every task is a build
+
+Requests are triaged before the pipeline starts (`orchestrator/task-router.md`), so you can hand
+`/autofeature` a question as well as a feature:
+
+```
+/autofeature have a look into the iOS app and see how the styles are
+/autofeature:do route-only compare navigation on iOS and Android
+```
+
+The router works out the **intent** (build, fix, investigate, audit, test, review, award), the
+**target** repo ("the iOS app" is found by project signature, and you're asked if two match), the
+**route** and the **model**. For the first example, the route is a read-only survey by
+`swift-architect` on Sonnet: a report with file:line citations, counts of token vs hardcoded styles,
+and ranked findings. You then get follow-up `/autofeature` prompts to choose from. Audits with their
+own command (copy, SEO, API shape, conventions), live tests, reviews and award work go to that
+command. Only builds and fixes enter the pipeline. `/autofeature:do` is the same triage under its
+own name. Add `route-only` to see the decision without running anything.
+
 ---
 
 ## Modes
